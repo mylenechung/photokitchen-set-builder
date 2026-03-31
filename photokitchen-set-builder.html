@@ -1,0 +1,3601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photokitchen Set Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:        #1a1a1a;
+    --ink-soft:   #4a4a4a;
+    --cream:      #fafaf8;
+    --warm:       #f4f3f0;
+    --subtle:     #eeecea;
+    --accent:     #1a1a1a;
+    --accent2:    #c8a96e;
+    --rust:       #b85c3a;
+    --panel:      #fafaf8;
+    --panel-light:#f4f3f0;
+    --border:     rgba(0,0,0,0.08);
+    --border-mid: rgba(0,0,0,0.14);
+    --text-muted: rgba(0,0,0,0.38);
+    --shadow:     0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--panel);
+    color: var(--ink);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    background: var(--cream);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Cormorant', serif;
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--text-muted); font-size: 10px; font-family: 'Outfit', sans-serif; margin-left: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .btn-ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--border-mid); }
+  .btn-ghost:hover { color: var(--ink); border-color: var(--ink); }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { background: #333; }
+  .btn-gold { background: var(--ink); color: #fff; }
+  .btn-gold:hover { background: #333; }
+
+  /* LAYOUT */
+  .workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--cream);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-tab {
+    flex: 1;
+    padding: 12px 6px;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    border-bottom: 2px solid transparent;
+    font-family: 'Outfit', sans-serif;
+  }
+  .sidebar-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+  .sidebar-tab:hover:not(.active) { color: var(--ink-soft); }
+  
+  .sidebar-search {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-search input {
+    width: 100%;
+    background: var(--subtle);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 7px 10px;
+    color: var(--ink);
+    font-size: 11px;
+    font-family: 'Outfit', sans-serif;
+    outline: none;
+    letter-spacing: 0.02em;
+  }
+  .sidebar-search input::placeholder { color: var(--text-muted); }
+  .sidebar-search input:focus { border-color: var(--ink); background: #fff; }
+
+  .sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.1) transparent;
+  }
+
+  .asset-category {
+    margin-bottom: 4px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .asset-category-title {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 4px 8px;
+  }
+  .cat-chevron {
+    font-size: 9px;
+    color: var(--text-muted);
+    transition: transform 0.18s;
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+    line-height: 1;
+  }
+  .asset-category.collapsed .cat-chevron { transform: rotate(-90deg); }
+  .asset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    overflow: hidden;
+    transition: opacity 0.15s;
+    padding-bottom: 6px;
+  }
+  .asset-category.collapsed .asset-grid { display: none; }
+  .asset-item {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid var(--border);
+    cursor: grab;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    position: relative;
+    user-select: none;
+  }
+  .asset-item:hover { border-color: var(--ink); background: var(--subtle); transform: scale(1.04); }
+  .asset-item:active { cursor: grabbing; }
+  .asset-item img { width: 85%; height: 85%; object-fit: contain; pointer-events: none; }
+  .asset-item .asset-label {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(26,26,26,0.82);
+    font-size: 8px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: rgba(255,255,255,0.9);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 3px 4px;
+  }
+  .asset-item:hover .asset-label { opacity: 1; }
+
+  /* Asset context menu */
+  #assetContextMenu {
+    position: fixed;
+    z-index: 99999;
+    background: #fff;
+    border: 1px solid var(--border-mid);
+    border-radius: 6px;
+    padding: 4px;
+    min-width: 180px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    display: none;
+  }
+  #assetContextMenu.open { display: block; }
+  .ctx-item {
+    padding: 7px 12px;
+    font-size: 11px;
+    color: var(--ink);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.1s;
+    letter-spacing: 0.02em;
+  }
+  .ctx-item:hover { background: var(--subtle); }
+  .ctx-item .ctx-icon { font-size: 13px; width: 16px; text-align: center; }
+  .ctx-divider { height: 1px; background: var(--border); margin: 3px 4px; }
+
+  /* Tag chips inside context menu */
+  .ctx-tags-area { padding: 6px 10px 4px; }
+  .ctx-tags-label { font-size: 9px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px; }
+  .ctx-tag-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; min-height: 8px; }
+  .ctx-tag-chip {
+    display: flex; align-items: center; gap: 3px;
+    background: var(--subtle);
+    border: 1px solid var(--border-mid);
+    color: var(--ink-soft);
+    font-size: 9px; border-radius: 3px; padding: 2px 7px 2px 8px;
+    cursor: default; letter-spacing: 0.04em;
+  }
+  .ctx-tag-chip .chip-x { cursor: pointer; color: var(--text-muted); font-size: 9px; line-height: 1; }
+  .ctx-tag-chip .chip-x:hover { color: var(--rust); }
+  .ctx-tag-input-row { display: flex; gap: 4px; }
+  .ctx-tag-input {
+    flex: 1; background: var(--subtle); border: 1px solid var(--border-mid);
+    border-radius: 4px; color: var(--ink); font-size: 10px; padding: 5px 8px;
+    outline: none; font-family: 'Outfit', sans-serif;
+  }
+  .ctx-tag-input:focus { border-color: var(--ink); background: #fff; }
+  .ctx-tag-add-btn {
+    background: var(--ink); border: none;
+    color: #fff; border-radius: 4px; padding: 5px 10px; font-size: 11px;
+    cursor: pointer; font-family: 'Outfit', sans-serif;
+  }
+  .ctx-tag-add-btn:hover { background: #333; }
+
+  /* Asset tag dot */
+  .asset-tag-dot {
+    position: absolute; top: 3px; left: 3px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--ink); opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    margin: 8px;
+    border: 1.5px dashed var(--border-mid);
+    border-radius: 4px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .upload-zone:hover { border-color: var(--ink); background: var(--subtle); }
+  .upload-zone-icon { font-size: 20px; margin-bottom: 6px; }
+  .upload-zone p { font-size: 10px; color: var(--text-muted); line-height: 1.5; letter-spacing: 0.02em; }
+  .upload-zone p strong { color: var(--ink); }
+
+  /* CANVAS AREA */
+  .canvas-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .canvas-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--cream);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .tool-group { display: flex; gap: 4px; align-items: center; }
+  .tool-divider { width: 1px; height: 20px; background: var(--border-mid); margin: 0 4px; }
+  .tool-btn {
+    width: 30px; height: 30px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+    font-family: 'Outfit', sans-serif;
+  }
+  .tool-btn:hover { color: var(--ink); border-color: var(--border-mid); background: var(--subtle); }
+  .tool-btn.active { color: var(--ink); border-color: var(--ink); background: var(--subtle); }
+  .tool-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.04em; }
+  .canvas-size-select {
+    background: var(--subtle);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--ink);
+    font-size: 11px;
+    font-family: 'Outfit', sans-serif;
+    padding: 4px 8px;
+    cursor: pointer;
+    outline: none;
+  }
+  .canvas-size-select option { background: #fff; }
+
+  .canvas-wrapper {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background: var(--warm);
+    background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  #canvas {
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 20px 60px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+  #canvas.drag-over { box-shadow: 0 0 0 2px var(--ink), 0 20px 60px rgba(0,0,0,0.1); }
+
+  .canvas-element {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+  }
+  .canvas-element.selected::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border: 1.5px solid var(--ink);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+  .canvas-element img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+    position: relative;
+  }
+  .canvas-element.crop-mode { cursor: crosshair; overflow: hidden; }
+  .canvas-element.crop-mode::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border: 2px solid #4a9eff;
+    border-radius: 2px;
+    pointer-events: none;
+  }
+  .canvas-element.crop-mode img { position: absolute; width: auto; height: auto; object-fit: unset; cursor: grab; }
+  .canvas-element.crop-mode img:active { cursor: grabbing; }
+  .crop-mode-hint {
+    position: absolute;
+    bottom: -26px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #fff;
+    font-size: 10px;
+    font-family: 'Outfit', sans-serif;
+    padding: 3px 10px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 9999;
+    letter-spacing: 0.04em;
+  }
+  .canvas-element .resize-handle {
+    position: absolute;
+    width: 8px; height: 8px;
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    border-radius: 2px;
+    display: none;
+    z-index: 10;
+  }
+  .canvas-element.selected .resize-handle { display: block; }
+  .resize-handle.se { bottom: -4px; right: -4px; cursor: se-resize; }
+  .resize-handle.sw { bottom: -4px; left: -4px; cursor: sw-resize; }
+  .resize-handle.ne { top: -4px; right: -4px; cursor: ne-resize; }
+  .resize-handle.nw { top: -4px; left: -4px; cursor: nw-resize; }
+  .resize-handle.n { top: -4px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+  .resize-handle.s { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+  .resize-handle.e { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; }
+  .resize-handle.w { top: 50%; left: -4px; transform: translateY(-50%); cursor: w-resize; }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    width: 200px; flex-shrink: 0;
+    background: var(--cream);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-section { border-bottom: 1px solid var(--border); padding: 12px; }
+  .panel-section-title {
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 10px;
+  }
+
+  .layers-list {
+    flex: 1; overflow-y: auto; padding: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.08) transparent;
+  }
+  .layer-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 4px;
+    cursor: pointer; transition: all 0.12s;
+    font-size: 11px; color: var(--ink-soft);
+    border: 1px solid transparent;
+  }
+  .layer-item:hover { background: var(--subtle); color: var(--ink); }
+  .layer-item.selected { background: var(--subtle); color: var(--ink); border-color: var(--border-mid); }
+  .layer-thumb {
+    width: 26px; height: 26px; border-radius: 3px;
+    background: var(--warm);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .layer-thumb img { width: 100%; height: 100%; object-fit: contain; }
+  .layer-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .layer-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.1s; }
+  .layer-item:hover .layer-actions { opacity: 1; }
+  .layer-action-btn {
+    width: 18px; height: 18px; border-radius: 3px;
+    background: var(--subtle); border: 1px solid var(--border);
+    color: var(--ink-soft); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; transition: all 0.1s;
+  }
+  .layer-action-btn:hover { background: var(--border-mid); color: var(--ink); }
+
+  .layer-drag-handle {
+    color: var(--text-muted); font-size: 11px;
+    cursor: grab; padding: 0 2px;
+    flex-shrink: 0; opacity: 0;
+    transition: opacity 0.1s; line-height: 1; user-select: none;
+  }
+  .layer-item:hover .layer-drag-handle { opacity: 1; }
+  .layer-item.layer-dragging { opacity: 0.35; pointer-events: none; }
+  .layer-drop-indicator {
+    height: 2px; background: var(--ink); border-radius: 2px;
+    margin: 1px 4px; display: none;
+  }
+  .layer-drop-indicator.active { display: block; }
+  #layer-ghost {
+    position: fixed; pointer-events: none; z-index: 99999;
+    background: #fff; border: 1px solid var(--border-mid);
+    border-radius: 4px; padding: 5px 8px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--ink);
+    opacity: 0.95; box-shadow: var(--shadow);
+    white-space: nowrap; transform: rotate(-1deg); display: none;
+  }
+
+  /* PROPERTIES */
+  .prop-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 6px; }
+  .prop-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.04em; flex-shrink: 0; width: 36px; }
+  .prop-input {
+    flex: 1; background: var(--subtle);
+    border: 1px solid var(--border); border-radius: 4px;
+    color: var(--ink); font-size: 11px;
+    font-family: 'Outfit', sans-serif;
+    padding: 5px 7px; outline: none; width: 100%;
+  }
+  .prop-input:focus { border-color: var(--ink); background: #fff; }
+  .opacity-slider { width: 100%; accent-color: var(--ink); cursor: pointer; }
+
+  /* CANVAS BG */
+  .bg-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+  .bg-option {
+    aspect-ratio: 1; border-radius: 3px; cursor: pointer;
+    border: 2px solid transparent; transition: all 0.15s; overflow: hidden;
+  }
+  .bg-option:hover, .bg-option.active { border-color: var(--ink); }
+
+  /* EMPTY STATE */
+  .canvas-empty {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0.25;
+  }
+  .canvas-empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .canvas-empty p { font-size: 12px; color: var(--ink); text-align: center; line-height: 1.6; letter-spacing: 0.02em; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--ink); border: none;
+    color: #fff; padding: 8px 20px;
+    border-radius: 4px; font-size: 11px;
+    letter-spacing: 0.04em;
+    opacity: 0; transition: all 0.22s;
+    pointer-events: none; z-index: 9999;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .no-elements { color: var(--text-muted); font-size: 11px; text-align: center; padding: 20px 0; letter-spacing: 0.04em; }
+  
+  .canvas-bg-color {
+    width: 100%; height: 32px;
+    border-radius: 4px; border: 1px solid var(--border);
+    background: transparent; cursor: pointer; padding: 2px;
+  }
+
+  /* CATEGORY DROP TARGETS */
+  .cat-drop-target { border-radius: 4px; transition: background 0.15s, box-shadow 0.15s; }
+  .cat-drop-target.drag-over-cat { background: rgba(0,0,0,0.04); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .cat-title-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 6px 6px; border-radius: 4px;
+    transition: background 0.12s; gap: 6px;
+    cursor: pointer; user-select: none;
+  }
+  .cat-title-row:hover { background: rgba(0,0,0,0.03); }
+  .cat-drop-target.drag-over-cat .cat-title-row { background: rgba(0,0,0,0.04); }
+  .cat-drop-hint { font-size: 9px; color: var(--ink); opacity: 0; transition: opacity 0.15s; white-space: nowrap; }
+  body.dragging-user-asset .cat-drop-hint { opacity: 0.5; }
+  body.dragging-user-asset .cat-drop-target { cursor: copy; }
+
+  .user-asset-drag { outline: 1.5px dashed rgba(0,0,0,0.2); outline-offset: 2px; }
+  .user-asset-drag:hover { outline-color: var(--ink); }
+
+  /* ── ASSET HOVER PREVIEW ── */
+  #assetHoverPreview {
+    position: fixed; z-index: 99998;
+    background: #fff; border: 1px solid var(--border-mid);
+    border-radius: 6px; padding: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; width: 140px;
+  }
+  #assetHoverPreview.visible { opacity: 1; }
+  #assetHoverPreview img { width: 110px; height: 110px; object-fit: contain; }
+  #assetHoverPreview .preview-name {
+    font-size: 10px; color: var(--ink-soft); text-align: center;
+    letter-spacing: 0.04em; max-width: 120px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;
+  }
+  #assetHoverPreview .preview-tags { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+  #assetHoverPreview .preview-tag {
+    font-size: 8px; background: var(--subtle); border: 1px solid var(--border);
+    border-radius: 2px; padding: 1px 5px; color: var(--ink-soft); letter-spacing: 0.04em;
+  }
+
+  /* ── LOCK ── */
+  .canvas-element.locked { cursor: not-allowed !important; }
+  .canvas-element.locked .resize-handle { display: none !important; }
+  .canvas-element.locked::after { border-style: dashed !important; opacity: 0.5; }
+  .layer-lock-btn {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 11px; padding: 1px 3px;
+    border-radius: 3px; transition: color 0.1s; flex-shrink: 0; opacity: 0;
+  }
+  .layer-item:hover .layer-lock-btn { opacity: 1; }
+  .layer-lock-btn.locked { color: var(--ink); opacity: 1 !important; }
+
+  /* ── BLEND MODE ── */
+  .blend-select {
+    flex: 1; background: var(--subtle); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--ink); font-size: 10px;
+    font-family: 'Outfit', sans-serif; padding: 4px 6px; outline: none; cursor: pointer;
+  }
+  .blend-select:focus { border-color: var(--ink); background: #fff; }
+
+  /* MULTI-SELECT */
+  #multiSelectBox {
+    position: absolute; border: 1.5px solid var(--ink);
+    border-radius: 2px; pointer-events: none; display: none;
+    z-index: 9000; background: rgba(26,26,26,0.04);
+  }
+  #multiSelectBox.active { display: block; pointer-events: all; }
+  #multiSelectBox .ms-handle {
+    position: absolute; width: 8px; height: 8px;
+    background: #fff; border: 1.5px solid var(--ink);
+    border-radius: 2px; z-index: 9001; cursor: se-resize;
+  }
+  #multiSelectBox .ms-handle.nw { top:-4px;  left:-4px;  cursor:nw-resize; }
+  #multiSelectBox .ms-handle.n  { top:-4px;  left:50%; transform:translateX(-50%); cursor:n-resize; }
+  #multiSelectBox .ms-handle.ne { top:-4px;  right:-4px; cursor:ne-resize; }
+  #multiSelectBox .ms-handle.e  { top:50%; transform:translateY(-50%); right:-4px; cursor:e-resize; }
+  #multiSelectBox .ms-handle.se { bottom:-4px; right:-4px; cursor:se-resize; }
+  #multiSelectBox .ms-handle.s  { bottom:-4px; left:50%; transform:translateX(-50%); cursor:s-resize; }
+  #multiSelectBox .ms-handle.sw { bottom:-4px; left:-4px; cursor:sw-resize; }
+  #multiSelectBox .ms-handle.w  { top:50%; transform:translateY(-50%); left:-4px; cursor:w-resize; }
+  .canvas-element.multi-selected::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border: 1.5px solid #4a9eff;
+    border-radius: 3px;
+    pointer-events: none;
+  }
+  /* Rubber-band selection rect */
+  #selectionRect {
+    position: absolute;
+    border: 1.5px dashed #4a9eff;
+    background: rgba(74,158,255,0.07);
+    pointer-events: none;
+    display: none;
+    z-index: 8999;
+  }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 10000;
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .gallery-panel {
+    width: 420px;
+    background: #fafaf8;
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    transform: translateX(40px);
+    transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+    overflow: hidden;
+  }
+  .modal-overlay.open .gallery-panel { transform: translateX(0); }
+  .gallery-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .gallery-title { font-family: 'Cormorant', serif; font-size: 16px; font-weight: 400; color: var(--ink); letter-spacing: 0.06em; text-transform: uppercase; }
+  .gallery-close {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 18px; cursor: pointer; line-height: 1;
+    padding: 2px 6px; border-radius: 3px; transition: all 0.12s;
+  }
+  .gallery-close:hover { color: var(--ink); background: var(--subtle); }
+
+  .gallery-toolbar { padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .new-folder-btn {
+    width: 100%; padding: 7px;
+    background: transparent; border: 1px dashed var(--border-mid);
+    border-radius: 4px; color: var(--ink-soft); font-size: 11px;
+    font-family: 'Outfit', sans-serif; cursor: pointer; transition: all 0.15s;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .new-folder-btn:hover { background: var(--subtle); border-color: var(--ink); color: var(--ink); }
+
+  .gallery-body {
+    flex: 1; overflow-y: auto; padding: 10px 12px;
+    scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.08) transparent;
+  }
+  .gallery-empty { text-align: center; padding: 48px 20px; color: var(--text-muted); font-size: 12px; line-height: 1.8; }
+  .gallery-empty-icon { font-size: 32px; margin-bottom: 10px; }
+
+  .folder-block { margin-bottom: 8px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .folder-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; background: var(--warm);
+    cursor: pointer; user-select: none; transition: background 0.12s;
+  }
+  .folder-header:hover { background: var(--subtle); }
+  .folder-chevron { font-size: 10px; color: var(--text-muted); transition: transform 0.15s; flex-shrink: 0; }
+  .folder-block.open .folder-chevron { transform: rotate(90deg); }
+  .folder-icon { font-size: 14px; flex-shrink: 0; }
+  .folder-name { flex: 1; font-size: 12px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .folder-count { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+  .folder-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.1s; }
+  .folder-header:hover .folder-actions { opacity: 1; }
+  .folder-action-btn {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 11px; cursor: pointer; padding: 2px 5px;
+    border-radius: 3px; transition: all 0.1s;
+  }
+  .folder-action-btn:hover { color: var(--ink); background: rgba(0,0,0,0.06); }
+  .folder-action-btn.danger:hover { color: var(--rust); }
+
+  .folder-sets { display: none; padding: 6px 8px 8px; gap: 6px; flex-direction: column; }
+  .folder-block.open .folder-sets { display: flex; }
+
+  .set-card {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 10px; border-radius: 5px;
+    border: 1px solid var(--border); background: #fff;
+    cursor: pointer; transition: all 0.13s; position: relative;
+  }
+  .set-card:hover { border-color: var(--border-mid); background: var(--subtle); }
+  .set-thumb {
+    width: 100%; border-radius: 4px; background: var(--warm);
+    flex-shrink: 0; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; border: 1px solid var(--border);
+  }
+  .set-thumb img { width: 100%; height: auto; display: block; object-fit: contain; }
+  .set-card-footer { display: flex; align-items: center; gap: 8px; }
+  .set-info { flex: 1; min-width: 0; }
+  .set-name { font-size: 12px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .set-meta { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+  .set-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.1s; flex-shrink: 0; }
+  .set-card:hover .set-actions { opacity: 1; }
+
+  /* Save dialog */
+  .save-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+    z-index: 11000; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.18s;
+  }
+  .save-overlay.open { opacity: 1; pointer-events: all; }
+  .save-dialog {
+    background: #fff; border: 1px solid var(--border-mid);
+    border-radius: 8px; padding: 28px; width: 340px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    transform: scale(0.97); transition: transform 0.18s;
+  }
+  .save-overlay.open .save-dialog { transform: scale(1); }
+  .save-dialog h3 {
+    font-family: 'Cormorant', serif; font-size: 16px; font-weight: 400;
+    color: var(--ink); margin-bottom: 20px; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .save-field { margin-bottom: 14px; }
+  .save-field label {
+    display: block; font-size: 9px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 6px;
+  }
+  .save-field input, .save-field select {
+    width: 100%; background: var(--subtle); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--ink); font-size: 12px;
+    font-family: 'Outfit', sans-serif; padding: 8px 10px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .save-field input:focus, .save-field select:focus { border-color: var(--ink); background: #fff; }
+  .save-field select option { background: #fff; }
+  .save-dialog-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+
+  /* Inline rename inputs */
+  .inline-rename {
+    background: #fff; border: 1px solid var(--ink);
+    border-radius: 3px; color: var(--ink); font-size: 12px;
+    font-family: 'Outfit', sans-serif; font-weight: 500;
+    padding: 1px 6px; outline: none; width: 100%; min-width: 0;
+  }
+  .cat-rename-btn {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 11px; padding: 1px 3px;
+    border-radius: 3px; opacity: 0;
+    transition: opacity 0.12s, color 0.12s; line-height: 1; flex-shrink: 0;
+  }
+  .cat-title-row:hover .cat-rename-btn { opacity: 1; }
+  .cat-rename-btn:hover { color: var(--ink); background: var(--subtle); }
+  .cat-rename-input {
+    background: #fff; border: 1px solid var(--ink);
+    border-radius: 3px; color: var(--ink); font-size: 11px;
+    font-family: 'Outfit', sans-serif; font-weight: 500;
+    letter-spacing: 0.04em; padding: 2px 7px; outline: none;
+    width: 100%; min-width: 0;
+  }
+  .cat-rename-input:focus { box-shadow: 0 0 0 2px rgba(26,26,26,0.1); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Photokitchen <span>Set Builder</span></div>
+  <div class="header-actions">
+    <select class="canvas-size-select" id="canvasSizeSelect" onchange="changeCanvasSize(this.value)">
+      <option value="1920x1080">16:9 (1920×1080)</option>
+      <option value="1080x1080">1:1 (1080×1080)</option>
+      <option value="1080x1920">9:16 (1080×1920)</option>
+      <option value="1200x628">OG (1200×628)</option>
+      <option value="800x600">4:3 (800×600)</option>
+    </select>
+    <button class="btn btn-ghost" onclick="clearCanvas()">Clear</button>
+    <button class="btn btn-primary" onclick="openSaveDialog()">Save Set</button>
+    <button class="btn btn-ghost" onclick="openGallery()">📁 Gallery</button>
+    <button class="btn btn-gold" onclick="exportCanvas()">Export PNG</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <div class="sidebar-tab active" onclick="switchTab('assets',this)">Assets</div>
+      <div class="sidebar-tab" onclick="switchTab('upload',this)">Upload</div>
+    </div>
+
+    <!-- ASSETS TAB -->
+    <div id="tab-assets" class="sidebar-content">
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search assets…" id="assetSearch" oninput="filterAssets(this.value)">
+      </div>
+      <div id="assetsList"></div>
+    </div>
+
+    <!-- UPLOAD TAB -->
+    <div id="tab-upload" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div style="padding:12px; display:flex; flex-direction:column; gap:10px;">
+
+        <!-- Category picker -->
+        <div>
+          <div class="asset-category-title" style="padding:0 0 6px;">Save to category</div>
+          <div style="display:flex; gap:6px;">
+            <select id="uploadCategorySelect" class="canvas-size-select" style="flex:1; font-size:11px;">
+              <option value="Plants">Plants</option>
+              <option value="Kitchenware">Kitchenware</option>
+              <option value="Food Props">Food Props</option>
+              <option value="Tableware">Tableware</option>
+              <option value="Backgrounds">Backgrounds</option>
+              <option value="Surfaces">Surfaces</option>
+            </select>
+            <button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="showNewCategoryInput()">+ New</button>
+          </div>
+          <div id="newCategoryRow" style="display:none; margin-top:6px; display:none; gap:5px; flex-direction:row;">
+            <input id="newCategoryName" class="prop-input" placeholder="Category name…" style="flex:1;" onkeydown="if(event.key==='Enter')createCategory()">
+            <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="createCategory()">Add</button>
+          </div>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="upload-zone" onclick="document.getElementById('fileInput').click()" id="uploadZone">
+          <div class="upload-zone-icon">📁</div>
+          <p><strong>Click to upload</strong><br>or drag images here<br><span style="font-size:10px;">PNG, JPG, WebP, SVG</span></p>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFileUpload(event)">
+
+        <p style="font-size:10px; color:var(--text-muted); text-align:center; line-height:1.5;">
+          Uploaded assets appear in the<br><strong style="color:var(--ink);">Assets tab</strong> under the chosen category.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-container">
+    <div class="canvas-toolbar">
+      <div class="tool-group">
+        <button class="tool-btn active" id="toolSelect" onclick="setTool('select')" title="Select (V)">↖</button>
+        <button class="tool-btn" id="toolText" onclick="addTextElement()" title="Add Text">T</button>
+      </div>
+      <div class="tool-divider"></div>
+      <div class="tool-group">
+        <button class="tool-btn" onclick="moveLayer('up')" title="Bring Forward">↑</button>
+        <button class="tool-btn" onclick="moveLayer('down')" title="Send Backward">↓</button>
+        <button class="tool-btn" onclick="moveLayer('top')" title="Bring to Front">⇑</button>
+        <button class="tool-btn" onclick="moveLayer('bottom')" title="Send to Back">⇓</button>
+      </div>
+      <div class="tool-divider"></div>
+      <div class="tool-group">
+        <button class="tool-btn" onclick="flipH()" title="Flip Horizontal">⇔</button>
+        <button class="tool-btn" onclick="flipV()" title="Flip Vertical">⇕</button>
+        <button class="tool-btn" onclick="duplicateSelected()" title="Duplicate (Cmd+D)">⧉</button>
+        <button class="tool-btn" id="lockBtn" onclick="toggleLock()" title="Lock / Unlock element">🔓</button>
+        <button class="tool-btn" onclick="deleteSelected()" title="Delete" style="color:#c0513a;">🗑</button>
+      </div>
+      <div class="tool-divider"></div>
+      <div class="tool-group">
+        <button class="tool-btn" onclick="undo()" title="Undo (Ctrl+Z)">↩</button>
+        <button class="tool-btn" onclick="redo()" title="Redo (Ctrl+Y)">↪</button>
+      </div>
+      <div class="tool-divider"></div>
+      <div class="tool-group">
+        <span class="tool-label">Zoom:</span>
+        <button class="tool-btn" onclick="zoom(-0.1)">−</button>
+        <span class="tool-label" id="zoomLabel">100%</span>
+        <button class="tool-btn" onclick="zoom(0.1)">+</button>
+        <button class="tool-btn" onclick="resetZoom()" title="Reset to 100%">⊙</button>
+        <button class="tool-btn" onclick="zoomToFit()" title="Zoom to Fit (0)" style="font-size:11px;letter-spacing:-0.02em;">Fit</button>
+      </div>
+    </div>
+
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <div id="canvas" style="width:960px;height:540px;">
+        <div class="canvas-empty" id="emptyState">
+          <div class="canvas-empty-icon">🍽</div>
+          <p>Drag elements from the panel<br>to start building your set</p>
+        </div>
+        <div id="multiSelectBox">
+          <div class="ms-handle nw" data-pos="nw"></div>
+          <div class="ms-handle n"  data-pos="n"></div>
+          <div class="ms-handle ne" data-pos="ne"></div>
+          <div class="ms-handle e"  data-pos="e"></div>
+          <div class="ms-handle se" data-pos="se"></div>
+          <div class="ms-handle s"  data-pos="s"></div>
+          <div class="ms-handle sw" data-pos="sw"></div>
+          <div class="ms-handle w"  data-pos="w"></div>
+        </div>
+        <div id="selectionRect"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <!-- Properties -->
+    <div class="panel-section">
+      <div class="panel-section-title">Properties</div>
+      <div id="propertiesPanel">
+        <div style="font-size:11px;color:var(--text-muted);text-align:center;padding:8px 0;">No element selected</div>
+      </div>
+    </div>
+
+    <!-- Canvas BG -->
+    <div class="panel-section">
+      <div class="panel-section-title">Canvas Background</div>
+      <div class="prop-row">
+        <span class="prop-label">Color</span>
+        <input type="color" class="canvas-bg-color" value="#ffffff" onchange="document.getElementById('canvas').style.backgroundColor=this.value">
+      </div>
+    </div>
+
+    <!-- Layers -->
+    <div class="panel-section" style="padding-bottom:6px;">
+      <div class="panel-section-title">Layers</div>
+    </div>
+    <div class="layers-list" id="layersList">
+      <div class="no-elements">No elements yet</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- GALLERY PANEL -->
+<div class="modal-overlay" id="galleryOverlay" onclick="handleOverlayClick(event)">
+  <div class="gallery-panel" id="galleryPanel">
+    <div class="gallery-header">
+      <span class="gallery-title">Set Gallery</span>
+      <button class="gallery-close" onclick="closeGallery()">✕</button>
+    </div>
+    <div class="gallery-toolbar">
+      <button class="new-folder-btn" onclick="promptNewFolder()">＋ New Brand Folder</button>
+    </div>
+    <div class="gallery-body" id="galleryBody">
+      <div class="gallery-empty">
+        <div class="gallery-empty-icon">🗂</div>
+        No saved sets yet.<br>
+        Create a brand folder,<br>then save your first set.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SAVE DIALOG -->
+<div class="save-overlay" id="saveOverlay">
+  <div class="save-dialog">
+    <h3>Save Set</h3>
+    <div class="save-field">
+      <label>Set Name</label>
+      <input id="saveSetName" type="text" placeholder="e.g. Kitchen Hero Shot A" maxlength="60">
+    </div>
+    <div class="save-field">
+      <label>Brand Folder</label>
+      <select id="saveFolderSelect">
+        <option value="">— Select a folder —</option>
+      </select>
+    </div>
+    <div id="newFolderInSaveRow" style="margin-top:8px;display:none;">
+      <div class="save-field" style="margin-bottom:0;">
+        <label>New Folder Name</label>
+        <input id="saveNewFolderName" type="text" placeholder="e.g. Jollibee" maxlength="60">
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;width:100%;" onclick="toggleNewFolderInSave()">＋ Create new folder instead</button>
+    </div>
+    <div class="save-dialog-actions">
+      <button class="btn btn-ghost" onclick="closeSaveDialog()">Cancel</button>
+      <button class="btn btn-gold" onclick="confirmSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="layer-ghost"></div>
+
+<!-- Asset right-click context menu -->
+<div id="assetContextMenu">
+  <div class="ctx-item" id="ctxRename"><span class="ctx-icon">✏</span> Rename asset</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-tags-area">
+    <div class="ctx-tags-label">Tags</div>
+    <div class="ctx-tag-chips" id="ctxTagChips"></div>
+    <div class="ctx-tag-input-row">
+      <input class="ctx-tag-input" id="ctxTagInput" placeholder="Add tag…" maxlength="30">
+      <button class="ctx-tag-add-btn" id="ctxTagAddBtn">+</button>
+    </div>
+  </div>
+</div>
+<div id="assetHoverPreview">
+  <img id="hoverPreviewImg" src="" alt="">
+  <div class="preview-name" id="hoverPreviewName"></div>
+  <div class="preview-tags" id="hoverPreviewTags"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────
+let elements = [];
+let selectedId = null;
+let zoomLevel = 1;
+let history = [];
+let redoStack = [];
+let elementCounter = 0;
+
+// ─── ASSET LIBRARY ───────────────────────────────────────────────
+// Single unified array — ALL categories (including Backgrounds & Surfaces) live here.
+// Each item is either an emoji placeholder  { name, emoji }
+// or a color/gradient swatch               { name, bg, isSwatch: true }
+const DEMO_ELEMENTS = [
+  { category: "Plants", items: [
+    { name: "Ficus Tree", emoji: "🌳" },
+    { name: "Potted Plant", emoji: "🪴" },
+    { name: "Flower Bouquet", emoji: "💐" },
+    { name: "Cactus", emoji: "🌵" },
+    { name: "Herbs", emoji: "🌿" },
+    { name: "Vine", emoji: "🍃" },
+  ]},
+  { category: "Kitchenware", items: [
+    { name: "Cutting Board", emoji: "🪵" },
+    { name: "Dutch Oven", emoji: "🫕" },
+    { name: "Bowl", emoji: "🥣" },
+    { name: "Plate", emoji: "🍽" },
+    { name: "Coffee Maker", emoji: "☕" },
+    { name: "Mortar", emoji: "🧄" },
+  ]},
+  { category: "Food Props", items: [
+    { name: "Bread Basket", emoji: "🧺" },
+    { name: "Vegetables", emoji: "🥦" },
+    { name: "Tomatoes", emoji: "🍅" },
+    { name: "Cheese", emoji: "🧀" },
+    { name: "Garlic", emoji: "🧄" },
+    { name: "Spices", emoji: "🫙" },
+  ]},
+  { category: "Tableware", items: [
+    { name: "Wine Glass", emoji: "🍷" },
+    { name: "Pitcher", emoji: "🫗" },
+    { name: "Tea Cup", emoji: "🍵" },
+    { name: "Bottle", emoji: "🍾" },
+    { name: "Salt & Pepper", emoji: "🧂" },
+    { name: "Spoon", emoji: "🥄" },
+  ]},
+  { category: "Backgrounds", items: [
+    { name: "White",       bg: "#ffffff",                                            isSwatch: true },
+    { name: "Warm Grey",   bg: "#e8e0d5",                                            isSwatch: true },
+    { name: "Linen",       bg: "#f5f0e8",                                            isSwatch: true },
+    { name: "Sage",        bg: "#8fa882",                                            isSwatch: true },
+    { name: "Terracotta",  bg: "#c4714f",                                            isSwatch: true },
+    { name: "Black",       bg: "#1a1a1a",                                            isSwatch: true },
+    { name: "Dark Wood",   bg: "linear-gradient(135deg,#4a3728,#6b4c35,#3d2e22)",   isSwatch: true },
+    { name: "Concrete",    bg: "linear-gradient(135deg,#9e9e9e,#757575)",           isSwatch: true },
+  ]},
+  { category: "Surfaces", items: [
+    { name: "Oak Board",      bg: "linear-gradient(90deg,#c9956c,#b8835a,#d4a574)", isSwatch: true },
+    { name: "Marble White",   bg: "radial-gradient(circle,#f8f8f8,#e8e8e8)",        isSwatch: true },
+    { name: "Slate",          bg: "linear-gradient(135deg,#4a4a4a,#333,#555)",      isSwatch: true },
+    { name: "Butcher Block",  bg: "linear-gradient(90deg,#a0704a,#8b5e3c,#b07845)", isSwatch: true },
+  ]},
+];
+
+// Keep a legacy alias so any stray reference to ASSETS still resolves
+const ASSETS = [];
+
+// User-uploaded assets keyed by category name
+// { "Plants": [{name, imgSrc}, ...], "My Custom Cat": [...] }
+const userAssets = {};
+
+function getOrCreateUserCategory(catName) {
+  if (!userAssets[catName]) userAssets[catName] = [];
+  return userAssets[catName];
+}
+
+function showNewCategoryInput() {
+  const row = document.getElementById('newCategoryRow');
+  row.style.display = row.style.display === 'flex' ? 'none' : 'flex';
+  if (row.style.display === 'flex') document.getElementById('newCategoryName').focus();
+}
+
+function createCategory() {
+  const input = document.getElementById('newCategoryName');
+  const name = input.value.trim();
+  if (!name) return;
+  getOrCreateUserCategory(name);
+  // Add to the select dropdown if not already there
+  const sel = document.getElementById('uploadCategorySelect');
+  if (![...sel.options].some(o => o.value === name)) {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  }
+  sel.value = name;
+  input.value = '';
+  document.getElementById('newCategoryRow').style.display = 'none';
+  showToast(`Category "${name}" created`);
+}
+
+// ─── RENDER SIDEBAR ───────────────────────────────────────────────
+function makeImageAssetEl(item, currentCat) {
+  const el = document.createElement('div');
+  el.className = 'asset-item user-asset-drag';
+  el.style.position = 'relative';
+  el.draggable = true;
+  el.title = item.name + (item.tags?.length ? ` [${item.tags.join(', ')}]` : '') + ' — drag to move category';
+  el.dataset.userAssetName = item.name;
+  el.dataset.userAssetCat = currentCat;
+
+  const imgEl = document.createElement('img');
+  imgEl.src = item.imgSrc;
+  imgEl.style.cssText = 'width:85%;height:85%;object-fit:contain;pointer-events:none;';
+  el.appendChild(imgEl);
+
+  // Tag indicator dot
+  if (item.tags?.length) {
+    const dot = document.createElement('div');
+    dot.className = 'asset-tag-dot';
+    dot.title = 'Tags: ' + item.tags.join(', ');
+    el.appendChild(dot);
+  }
+
+  // Editable label — double-click to rename
+  const label = document.createElement('div');
+  label.className = 'asset-label';
+  label.textContent = item.name;
+  label.title = 'Double-click to rename';
+  label.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    startAssetRename(item, label, el, currentCat);
+  });
+  el.appendChild(label);
+
+  // Hover ✕ delete button
+  const delBtn = document.createElement('button');
+  delBtn.textContent = '✕';
+  delBtn.title = `Remove "${item.name}"`;
+  delBtn.style.cssText = `position:absolute;top:2px;right:2px;width:16px;height:16px;
+    background:rgba(192,81,58,0.85);border:none;border-radius:3px;color:#fff;
+    font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center;
+    line-height:1;padding:0;z-index:5;`;
+  delBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (confirm(`Remove "${item.name}" from the library?`)) {
+      for (const cat in userAssets) {
+        const idx = userAssets[cat].indexOf(item);
+        if (idx !== -1) { userAssets[cat].splice(idx, 1); break; }
+      }
+      saveUserAssets();
+      renderAssets(document.getElementById('assetSearch').value);
+      showToast(`"${item.name}" removed from library`);
+    }
+  });
+  el.appendChild(delBtn);
+  el.addEventListener('mouseenter', () => { delBtn.style.display = 'flex'; showAssetPreview(el, item); });
+  el.addEventListener('mouseleave', () => { delBtn.style.display = 'none'; hideAssetPreview(); });
+
+  // Right-click → context menu
+  el.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    openAssetContextMenu(e, item, el, currentCat);
+  });
+
+  el.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('asset-img', item.imgSrc);
+    e.dataTransfer.setData('asset-name', item.name);
+    e.dataTransfer.setData('user-asset-recat', '1');
+    e.dataTransfer.setData('user-asset-from-cat', currentCat);
+    e.dataTransfer.setData('user-asset-src', item.imgSrc);
+    document.body.classList.add('dragging-user-asset');
+  });
+  el.addEventListener('dragend', () => {
+    document.body.classList.remove('dragging-user-asset');
+  });
+
+  el.addEventListener('click', () => {
+    saveHistory();
+    const canvas = document.getElementById('canvas');
+    const id = 'el-' + (++elementCounter);
+    const x = 60 + Math.random() * (canvas.clientWidth - 200);
+    const y = 60 + Math.random() * (canvas.clientHeight - 200);
+    const tempImg = new Image();
+    tempImg.onload = () => {
+      const maxSide = 300;
+      const nat = tempImg.naturalWidth / tempImg.naturalHeight;
+      let w, h;
+      if (nat >= 1) { w = maxSide; h = Math.round(maxSide / nat); }
+      else          { h = maxSide; w = Math.round(maxSide * nat); }
+      const elData = { id, name: item.name, imgSrc: item.imgSrc, x, y, w, h,
+        opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1 };
+      elements.push(elData);
+      renderElement(elData);
+      selectElement(id);
+      updateLayers();
+      document.getElementById('emptyState').style.display = 'none';
+    };
+    tempImg.onerror = () => {
+      const elData = { id, name: item.name, imgSrc: item.imgSrc, x, y, w: 200, h: 200,
+        opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1 };
+      elements.push(elData);
+      renderElement(elData);
+      selectElement(id);
+      updateLayers();
+      document.getElementById('emptyState').style.display = 'none';
+    };
+    tempImg.src = item.imgSrc;
+  });
+  return el;
+}
+
+// ── Inline rename on the asset label ─────────────────────────────
+function startAssetRename(item, labelEl, assetEl, catName) {
+  const input = document.createElement('input');
+  input.value = item.name;
+  input.style.cssText = `position:absolute;bottom:0;left:0;right:0;
+    background:#fff;border:1px solid var(--ink);border-radius:0 0 4px 4px;
+    color:var(--ink);font-size:9px;text-align:center;padding:2px 4px;
+    outline:none;z-index:10;font-family:'Outfit',sans-serif;`;
+  assetEl.appendChild(input);
+  labelEl.style.opacity = '0';
+  input.focus(); input.select();
+
+  function commit() {
+    const newName = input.value.trim();
+    input.remove();
+    labelEl.style.opacity = '';
+    if (!newName || newName === item.name) return;
+    item.name = newName;
+    labelEl.textContent = newName;
+    assetEl.title = newName;
+    assetEl.dataset.userAssetName = newName;
+    saveUserAssets();
+    showToast(`Renamed to "${newName}"`);
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = item.name; input.blur(); }
+  });
+}
+
+// ── Context menu ──────────────────────────────────────────────────
+let _ctxItem = null, _ctxEl = null, _ctxCat = null;
+
+function openAssetContextMenu(e, item, assetEl, catName) {
+  _ctxItem = item; _ctxEl = assetEl; _ctxCat = catName;
+
+  const menu = document.getElementById('assetContextMenu');
+  // Position near cursor, keep on screen
+  const menuW = 200, menuH = 240;
+  const x = Math.min(e.clientX, window.innerWidth  - menuW - 8);
+  const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+  menu.classList.add('open');
+
+  renderCtxTags();
+  document.getElementById('ctxTagInput').value = '';
+  document.getElementById('ctxTagInput').focus();
+}
+
+function renderCtxTags() {
+  const chips = document.getElementById('ctxTagChips');
+  chips.innerHTML = '';
+  (_ctxItem.tags || []).forEach(tag => {
+    const chip = document.createElement('div');
+    chip.className = 'ctx-tag-chip';
+    chip.innerHTML = `<span>${tag}</span><span class="chip-x">✕</span>`;
+    chip.querySelector('.chip-x').addEventListener('click', () => {
+      _ctxItem.tags = _ctxItem.tags.filter(t => t !== tag);
+      saveUserAssets();
+      renderCtxTags();
+      renderAssets(document.getElementById('assetSearch').value);
+    });
+    chips.appendChild(chip);
+  });
+}
+
+function closeAssetContextMenu() {
+  document.getElementById('assetContextMenu').classList.remove('open');
+  _ctxItem = _ctxEl = _ctxCat = null;
+}
+
+function addCtxTag() {
+  if (!_ctxItem) return;
+  const input = document.getElementById('ctxTagInput');
+  const tag = input.value.trim().toLowerCase().replace(/\s+/g, '-');
+  if (!tag) return;
+  if (!_ctxItem.tags) _ctxItem.tags = [];
+  if (!_ctxItem.tags.includes(tag)) {
+    _ctxItem.tags.push(tag);
+    saveUserAssets();
+    renderCtxTags();
+    renderAssets(document.getElementById('assetSearch').value);
+    // Refresh the gold dot on the asset tile
+    const dot = _ctxEl?.querySelector('.asset-tag-dot');
+    if (!dot && _ctxEl) {
+      const d = document.createElement('div');
+      d.className = 'asset-tag-dot';
+      _ctxEl.appendChild(d);
+    }
+  }
+  input.value = '';
+  input.focus();
+}
+
+// Wire up context menu buttons
+document.getElementById('ctxRename').addEventListener('click', () => {
+  if (!_ctxItem || !_ctxEl) return;
+  // Capture refs before closeAssetContextMenu nulls them
+  const item = _ctxItem, assetEl = _ctxEl, catName = _ctxCat;
+  const label = assetEl.querySelector('.asset-label');
+  closeAssetContextMenu();
+  if (label) startAssetRename(item, label, assetEl, catName);
+});
+document.getElementById('ctxTagAddBtn').addEventListener('click', addCtxTag);
+document.getElementById('ctxTagInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addCtxTag(); }
+  if (e.key === 'Escape') closeAssetContextMenu();
+});
+// Close on click outside
+document.addEventListener('mousedown', e => {
+  const menu = document.getElementById('assetContextMenu');
+  if (menu.classList.contains('open') && !menu.contains(e.target)) {
+    closeAssetContextMenu();
+  }
+}, true);
+
+// ─── CATEGORY RENAME ────────────────────────────────────────────
+function renameCategory(oldName, titleTextEl, titleRowEl) {
+  // Swap the text label for an input
+  const input = document.createElement('input');
+  input.className = 'cat-rename-input';
+  input.value = oldName;
+  input.maxLength = 40;
+
+  // Hide the existing title text and pencil button while editing
+  titleTextEl.style.display = 'none';
+  const pencilBtn = titleRowEl.querySelector('.cat-rename-btn');
+  if (pencilBtn) pencilBtn.style.display = 'none';
+
+  titleRowEl.insertBefore(input, titleRowEl.firstChild);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const newName = input.value.trim();
+    if (!newName || newName === oldName) {
+      cancelRename();
+      return;
+    }
+
+    // 1. Rename in DEMO_ELEMENTS if it's a built-in category
+    const builtIn = DEMO_ELEMENTS.find(c => c.category === oldName);
+    if (builtIn) builtIn.category = newName;
+
+    // 2. Rename the key in userAssets if any uploads live there
+    if (userAssets[oldName]) {
+      userAssets[newName] = userAssets[oldName];
+      delete userAssets[oldName];
+    }
+
+    // 3. Update the upload-tab category dropdown
+    const sel = document.getElementById('uploadCategorySelect');
+    const opt = [...sel.options].find(o => o.value === oldName);
+    if (opt) { opt.value = newName; opt.textContent = newName; }
+    if (sel.value === oldName) sel.value = newName;
+
+    saveUserAssets();
+    renderAssets(document.getElementById('assetSearch').value);
+    showToast(`"${oldName}" renamed to "${newName}"`);
+  }
+
+  function cancelRename() {
+    input.remove();
+    titleTextEl.style.display = '';
+    if (pencilBtn) pencilBtn.style.display = '';
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') cancelRename();
+  });
+  input.addEventListener('blur', commit);
+}
+
+// ─── CATEGORY COLLAPSE STATE ─────────────────────────────────────
+const collapsedCategories = new Set();
+
+async function saveCollapseState() {
+  try {
+    await window.storage.set('pk-collapsed-cats', JSON.stringify([...collapsedCategories]));
+  } catch(e) {}
+}
+
+async function loadCollapseState() {
+  try {
+    const result = await window.storage.get('pk-collapsed-cats');
+    if (result) {
+      JSON.parse(result.value).forEach(c => collapsedCategories.add(c));
+    }
+  } catch(e) {}
+}
+
+function toggleCategoryCollapse(catName, categoryDiv) {
+  if (collapsedCategories.has(catName)) {
+    collapsedCategories.delete(catName);
+    categoryDiv.classList.remove('collapsed');
+  } else {
+    collapsedCategories.add(catName);
+    categoryDiv.classList.add('collapsed');
+  }
+  saveCollapseState();
+}
+
+// ─── TITLE ROW FACTORY ──────────────────────────────────────────
+// Builds a consistent cat-title-row for both built-in and custom categories.
+function makeCategoryTitleRow(catName, { badge = null, isCustom = false } = {}) {
+  const titleRow = document.createElement('div');
+  titleRow.className = 'cat-title-row';
+
+  // Chevron (collapse indicator) — leftmost
+  const chevron = document.createElement('span');
+  chevron.className = 'cat-chevron';
+  chevron.textContent = '▾';
+  titleRow.appendChild(chevron);
+
+  // Left: name + optional badges
+  const leftSide = document.createElement('div');
+  leftSide.style.cssText = 'display:flex;align-items:center;gap:5px;min-width:0;flex:1;';
+
+  const titleText = document.createElement('span');
+  titleText.className = 'asset-category-title';
+  titleText.style.cssText = 'padding:0;white-space:nowrap;';
+  titleText.textContent = catName;
+  leftSide.appendChild(titleText);
+
+  if (isCustom) {
+    const customBadge = document.createElement('span');
+    customBadge.style.cssText = 'font-size:9px;background:var(--subtle);color:var(--ink-soft);border-radius:3px;padding:1px 5px;flex-shrink:0;';
+    customBadge.textContent = 'custom';
+    leftSide.appendChild(customBadge);
+  }
+
+  // Pencil rename button (sits right after the label)
+  const pencilBtn = document.createElement('button');
+  pencilBtn.className = 'cat-rename-btn';
+  pencilBtn.title = `Rename "${catName}"`;
+  pencilBtn.textContent = '✏';
+  pencilBtn.addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    renameCategory(catName, titleText, titleRow);
+  });
+  leftSide.appendChild(pencilBtn);
+
+  titleRow.appendChild(leftSide);
+
+  // Right: drop hint + optional user-count badge
+  const rightSide = document.createElement('div');
+  rightSide.style.cssText = 'display:flex;align-items:center;gap:5px;flex-shrink:0;';
+
+  const hint = document.createElement('span');
+  hint.className = 'cat-drop-hint';
+  hint.textContent = '↓ drop here';
+  rightSide.appendChild(hint);
+
+  if (badge) {
+    const badgeEl = document.createElement('span');
+    badgeEl.style.cssText = 'font-size:9px;background:var(--subtle);color:var(--ink-soft);border-radius:3px;padding:1px 5px;flex-shrink:0;';
+    badgeEl.textContent = badge;
+    rightSide.appendChild(badgeEl);
+  }
+
+  titleRow.appendChild(rightSide);
+
+  // Wire up collapse toggle on the row itself (pencil uses stopPropagation so it won't trigger this)
+  titleRow.addEventListener('click', () => {
+    // Find the parent .asset-category div
+    const categoryDiv = titleRow.closest('.asset-category');
+    if (categoryDiv) toggleCategoryCollapse(catName, categoryDiv);
+  });
+
+  return titleRow;
+}
+function bindCategoryDropTarget(div, targetCatName) {
+  div.classList.add('cat-drop-target');
+  div.addEventListener('dragover', e => {
+    if (e.dataTransfer.types.includes('user-asset-recat')) {
+      e.preventDefault();
+      div.classList.add('drag-over-cat');
+    }
+  });
+  div.addEventListener('dragleave', e => {
+    // Only remove if we're truly leaving this div (not entering a child)
+    if (!div.contains(e.relatedTarget)) div.classList.remove('drag-over-cat');
+  });
+  div.addEventListener('drop', e => {
+    div.classList.remove('drag-over-cat');
+    document.body.classList.remove('dragging-user-asset');
+    if (!e.dataTransfer.types.includes('user-asset-recat')) return;
+    e.preventDefault();
+    e.stopPropagation(); // prevent canvas from also receiving this drop
+
+    const fromCat = e.dataTransfer.getData('user-asset-from-cat');
+    const assetName = e.dataTransfer.getData('asset-name');
+    const assetSrc  = e.dataTransfer.getData('user-asset-src');
+
+    if (fromCat === targetCatName) {
+      showToast(`Already in "${targetCatName}"`);
+      return;
+    }
+
+    // Find and move the item
+    const fromList = userAssets[fromCat] || [];
+    const idx = fromList.findIndex(a => a.name === assetName && a.imgSrc === assetSrc);
+    if (idx === -1) {
+      showToast('Could not locate asset — try again');
+      return;
+    }
+    const [item] = fromList.splice(idx, 1);
+    getOrCreateUserCategory(targetCatName);
+    userAssets[targetCatName].push(item);
+
+    saveUserAssets();
+    renderAssets(document.getElementById('assetSearch').value);
+    showToast(`"${assetName}" → ${targetCatName}`);
+  });
+}
+
+function renderAssets(filter = '') {
+  const container = document.getElementById('assetsList');
+  container.innerHTML = '';
+  const f = filter.toLowerCase();
+
+  const builtInCatNames = DEMO_ELEMENTS.map(c => c.category);
+  const allUserCatNames = Object.keys(userAssets).filter(k => userAssets[k].length > 0);
+  const extraCats = allUserCatNames.filter(k => !builtInCatNames.includes(k));
+
+  // ── All built-in categories (emoji, swatch, + merged user uploads) ──
+  DEMO_ELEMENTS.forEach(cat => {
+    const filteredBuiltIn = f ? cat.items.filter(i => i.name.toLowerCase().includes(f)) : cat.items;
+    const filteredUser = (userAssets[cat.category] || []).filter(i => !f ||
+      i.name.toLowerCase().includes(f) ||
+      (i.tags || []).some(t => t.includes(f)));
+    if (!filteredBuiltIn.length && !filteredUser.length) return;
+
+    const div = document.createElement('div');
+    div.className = 'asset-category' + (collapsedCategories.has(cat.category) ? ' collapsed' : '');
+
+    const badge = filteredUser.length ? `+${filteredUser.length} yours` : null;
+    div.appendChild(makeCategoryTitleRow(cat.category, { badge }));
+
+    const grid = document.createElement('div');
+    grid.className = 'asset-grid';
+
+    filteredBuiltIn.forEach(item => {
+      const el = document.createElement('div');
+      el.style.position = 'relative';
+
+      if (item.isSwatch) {
+        // ── Color/gradient swatch ──
+        el.className = 'asset-item';
+        el.title = item.name;
+        const inner = document.createElement('div');
+        inner.style.cssText = `width:85%;height:85%;border-radius:4px;background:${item.bg};pointer-events:none;`;
+        el.appendChild(inner);
+        el.innerHTML += `<div class="asset-label">${item.name}</div>`;
+        el.addEventListener('click', () => addColorRectToCanvas(item.bg, item.name));
+      } else {
+        // ── Emoji placeholder ──
+        el.className = 'asset-item';
+        el.innerHTML = `<span style="font-size:28px;pointer-events:none;">${item.emoji}</span><div class="asset-label">${item.name}</div>`;
+        el.draggable = true;
+        el.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('asset-emoji', item.emoji);
+          e.dataTransfer.setData('asset-name', item.name);
+        });
+        el.addEventListener('click', () => addEmojiToCanvas(item.emoji, item.name));
+      }
+
+      // ── Delete button (appears on hover for ALL built-in placeholders) ──
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.title = `Remove "${item.name}"`;
+      delBtn.style.cssText = `position:absolute;top:2px;right:2px;width:16px;height:16px;
+        background:rgba(192,81,58,0.85);border:none;border-radius:3px;color:#fff;
+        font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center;
+        line-height:1;padding:0;z-index:5;`;
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (confirm(`Remove "${item.name}" from the library?`)) {
+          const catObj = DEMO_ELEMENTS.find(c => c.category === cat.category);
+          if (catObj) catObj.items = catObj.items.filter(i => i !== item);
+          renderAssets(document.getElementById('assetSearch').value);
+          showToast(`"${item.name}" removed`);
+        }
+      });
+      el.appendChild(delBtn);
+      el.addEventListener('mouseenter', () => {
+        delBtn.style.display = 'flex';
+        if (item.imgSrc) showAssetPreview(el, item);
+      });
+      el.addEventListener('mouseleave', () => { delBtn.style.display = 'none'; hideAssetPreview(); });
+
+      grid.appendChild(el);
+    });
+
+    // User-uploaded images for this category
+    filteredUser.forEach(item => grid.appendChild(makeImageAssetEl(item, cat.category)));
+
+    div.appendChild(grid);
+    bindCategoryDropTarget(div, cat.category);
+    container.appendChild(div);
+  });
+
+  // ── Extra user-only categories (created via + New) ──
+  extraCats.forEach(catName => {
+    const items = userAssets[catName].filter(i => !f ||
+      i.name.toLowerCase().includes(f) ||
+      (i.tags || []).some(t => t.includes(f)));
+    if (!items.length) return;
+
+    const div = document.createElement('div');
+    div.className = 'asset-category' + (collapsedCategories.has(catName) ? ' collapsed' : '');
+    div.appendChild(makeCategoryTitleRow(catName, { isCustom: true }));
+
+    const grid = document.createElement('div');
+    grid.className = 'asset-grid';
+    items.forEach(item => grid.appendChild(makeImageAssetEl(item, catName)));
+    div.appendChild(grid);
+    bindCategoryDropTarget(div, catName);
+    container.appendChild(div);
+  });
+}
+
+function filterAssets(val) { renderAssets(val); }
+
+// Switch to Assets tab and scroll to the newly populated category
+function switchToAssetsTab() {
+  const tabs = document.querySelectorAll('.sidebar-tab');
+  tabs[0].click();
+}
+
+// ─── TABS ────────────────────────────────────────────────────────
+function switchTab(tab, el) {
+  document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-assets').style.display = tab === 'assets' ? 'block' : 'none';
+  document.getElementById('tab-upload').style.display = tab === 'upload' ? 'flex' : 'none';
+}
+
+// ─── CANVAS SETUP ────────────────────────────────────────────────
+function changeCanvasSize(val) {
+  const [w, h] = val.split('x').map(Number);
+  const scale = Math.min(900 / w, 520 / h, 1);
+  const canvas = document.getElementById('canvas');
+  canvas.style.width = (w * scale) + 'px';
+  canvas.style.height = (h * scale) + 'px';
+  canvas.dataset.realWidth = w;
+  canvas.dataset.realHeight = h;
+  canvas.dataset.scale = scale;
+  showToast(`Canvas: ${w}×${h}`);
+}
+
+// ─── ADD ELEMENTS ────────────────────────────────────────────────
+function addEmojiToCanvas(emoji, name) {
+  saveHistory();
+  const canvas = document.getElementById('canvas');
+  const id = 'el-' + (++elementCounter);
+  const el = {
+    id, name, emoji,
+    x: 100 + Math.random() * (canvas.clientWidth - 200),
+    y: 80 + Math.random() * (canvas.clientHeight - 160),
+    w: 120, h: 120,
+    opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1
+  };
+  elements.push(el);
+  renderElement(el);
+  selectElement(id);
+  updateLayers();
+  document.getElementById('emptyState').style.display = 'none';
+}
+
+function addColorRectToCanvas(bg, name) {
+  saveHistory();
+  const canvas = document.getElementById('canvas');
+  const id = 'el-' + (++elementCounter);
+  const el = {
+    id, name, colorBg: bg,
+    x: 0, y: 0,
+    w: canvas.clientWidth, h: canvas.clientHeight * 0.5,
+    opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: 0
+  };
+  elements.unshift(el);
+  renderElement(el);
+  selectElement(id);
+  updateLayers();
+  document.getElementById('emptyState').style.display = 'none';
+}
+
+function addTextElement() {
+  saveHistory();
+  const canvas = document.getElementById('canvas');
+  const id = 'el-' + (++elementCounter);
+  const el = {
+    id, name: 'Text', isText: true, text: 'Double-click to edit',
+    x: 100, y: 100, w: 200, h: 50,
+    opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1,
+    fontSize: 24, color: '#1a1210'
+  };
+  elements.push(el);
+  renderElement(el);
+  selectElement(id);
+  updateLayers();
+  document.getElementById('emptyState').style.display = 'none';
+}
+
+function renderElement(el) {
+  const canvas = document.getElementById('canvas');
+  const existing = document.getElementById(el.id);
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.className = 'canvas-element' + (el.locked ? ' locked' : '');
+  div.id = el.id;
+  div.style.cssText = `left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px;
+    z-index:${el.zIndex};opacity:${el.opacity};
+    transform:scaleX(${el.flipH ? -1 : 1}) scaleY(${el.flipV ? -1 : 1}) rotate(${el.rotation || 0}deg);
+    mix-blend-mode:${el.blendMode || 'normal'};`;
+
+  if (el.isText) {
+    const t = document.createElement('div');
+    t.contentEditable = true;
+    t.style.cssText = `width:100%;height:100%;font-family:'Cormorant',serif;
+      font-size:${el.fontSize}px;color:${el.color};outline:none;cursor:text;padding:4px;
+      white-space:nowrap;`;
+    t.textContent = el.text;
+    t.addEventListener('dblclick', e => { t.focus(); e.stopPropagation(); });
+    t.addEventListener('input', () => { el.text = t.textContent; });
+    t.addEventListener('blur', () => { el.text = t.textContent; updateLayers(); });
+    div.appendChild(t);
+  } else if (el.emoji) {
+    const span = document.createElement('span');
+    span.style.cssText = `font-size:${el.w * 0.7}px;display:flex;align-items:center;
+      justify-content:center;width:100%;height:100%;line-height:1;`;
+    span.textContent = el.emoji;
+    div.appendChild(span);
+  } else if (el.imgSrc) {
+    div.style.overflow = 'hidden';
+    const img = document.createElement('img');
+    img.src = el.imgSrc;
+    img.draggable = false;
+    img.style.pointerEvents = 'none';
+
+    // Apply stored crop — offsets and image size are stored as RATIOS relative to
+    // the frame size at crop time, so they scale correctly when the frame is resized.
+    function applyImgTransform() {
+      const hasCrop = el._imgOXRatio != null;
+      if (hasCrop) {
+        // Recompute pixel values from ratios × current frame size
+        const ox = el._imgOXRatio * el.w;
+        const oy = el._imgOYRatio * el.h;
+        const rw = el._imgWRatio  * el.w;
+        const rh = el._imgHRatio  * el.h;
+        img.style.position  = 'absolute';
+        img.style.left      = ox + 'px';
+        img.style.top       = oy + 'px';
+        img.style.width     = rw + 'px';
+        img.style.height    = rh + 'px';
+        img.style.objectFit = 'fill';
+      } else {
+        img.style.position  = 'relative';
+        img.style.left      = '';
+        img.style.top       = '';
+        img.style.width     = '100%';
+        img.style.height    = '100%';
+        img.style.objectFit = 'contain';
+      }
+    }
+
+    applyImgTransform();
+    div.appendChild(img);
+
+    // Store reference so startResize can call it
+    div._applyImgTransform = applyImgTransform;
+
+    // Double-click → enter crop mode
+    div.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      enterCropMode(el, div, img, applyImgTransform);
+    });
+  } else if (el.colorBg) {
+    div.style.background = el.colorBg;
+  }
+
+  // Resize handles
+  ['nw','n','ne','e','se','s','sw','w'].forEach(pos => {
+    const h = document.createElement('div');
+    h.className = `resize-handle ${pos}`;
+    h.dataset.pos = pos;
+    div.appendChild(h);
+    h.addEventListener('mousedown', e => startResize(e, el.id, pos));
+  });
+
+  div.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('resize-handle')) return;
+    if (_cropActive && _cropActive.div === div) return;
+    if (el.locked) { selectElement(el.id); return; } // select but don't drag
+    startDrag(e, el.id);
+  });
+
+  canvas.appendChild(div);
+}
+
+// ─── DRAG / MOVE ────────────────────────────────────────────────
+let dragState = null;
+
+// ─── CROP MODE ───────────────────────────────────────────────────
+let _cropActive = null;
+
+function enterCropMode(el, div, img, applyImgTransform) {
+  if (_cropActive) exitCropMode();
+  selectElement(el.id);
+
+  // Compute object-fit:contain rendered size inside the current frame
+  const natW = img.naturalWidth  || el.w;
+  const natH = img.naturalHeight || el.h;
+  const natRatio = natW / natH;
+  const boxRatio  = el.w / el.h;
+  let rendW, rendH;
+  if (natRatio > boxRatio) { rendW = el.w; rendH = el.w / natRatio; }
+  else                      { rendH = el.h; rendW = el.h * natRatio; }
+
+  // Image offset inside the div (letterbox centering)
+  const rendOX = (el.w - rendW) / 2;
+  const rendOY = (el.h - rendH) / 2;
+
+  // Pin the image absolutely inside the div at its natural rendered position.
+  // As the div frame shrinks via overflow:hidden, the crop is visible in real time.
+  img.style.position  = 'absolute';
+  img.style.width     = rendW + 'px';
+  img.style.height    = rendH + 'px';
+  img.style.left      = rendOX + 'px';
+  img.style.top       = rendOY + 'px';
+  img.style.objectFit = 'fill'; // already sized, don't re-fit
+  div.style.overflow  = 'hidden';
+
+  // Blue crop-frame styling
+  div.style.outline       = '2px solid #4a9eff';
+  div.style.outlineOffset = '-2px';
+  div.style.boxShadow     = '0 0 0 9999px rgba(0,0,0,0.35)'; // dim outside
+
+  // Hint
+  const hint = document.createElement('div');
+  hint.className = 'crop-mode-hint';
+  hint.textContent = 'Drag handles to crop · Double-click or Esc to apply';
+  div.appendChild(hint);
+
+  // The image's absolute canvas-space position (needed for baking on exit)
+  const imgCanvasX = el.x + rendOX;
+  const imgCanvasY = el.y + rendOY;
+
+  // Crop resize: moves the FRAME only; image stays pinned via absolute pos
+  function startCropResize(e, pos) {
+    e.preventDefault(); e.stopPropagation();
+    const startX = e.clientX, startY = e.clientY;
+    const origX = el.x, origY = el.y, origW = el.w, origH = el.h;
+
+    function onMove(ev) {
+      const dx = (ev.clientX - startX) / zoomLevel;
+      const dy = (ev.clientY - startY) / zoomLevel;
+
+      if (pos.includes('e')) el.w = Math.max(1, origW + dx);
+      if (pos.includes('s')) el.h = Math.max(1, origH + dy);
+      if (pos.includes('w')) { el.w = Math.max(1, origW - dx); el.x = origX + (origW - el.w); }
+      if (pos.includes('n')) { el.h = Math.max(1, origH - dy); el.y = origY + (origH - el.h); }
+
+      // Move the frame div
+      div.style.left   = el.x + 'px';
+      div.style.top    = el.y  + 'px';
+      div.style.width  = el.w + 'px';
+      div.style.height = el.h + 'px';
+
+      // Shift the image inside the div to stay at its canvas-absolute position
+      img.style.left = (imgCanvasX - el.x) + 'px';
+      img.style.top  = (imgCanvasY - el.y) + 'px';
+    }
+    function onUp() {
+      saveHistory();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  // Rebind resize handles to crop behaviour
+  const handles = [...div.querySelectorAll('.resize-handle')];
+  handles.forEach(h => {
+    const pos = h.dataset.pos;
+    const clone = h.cloneNode(true);
+    h.replaceWith(clone);
+    clone.addEventListener('mousedown', e => startCropResize(e, pos));
+  });
+
+  _cropActive = { el, div, img, hint, imgCanvasX, imgCanvasY, rendW, rendH, applyImgTransform };
+}
+
+function exitCropMode() {
+  if (!_cropActive) return;
+  const { el, div, img, hint, imgCanvasX, imgCanvasY, rendW, rendH, applyImgTransform } = _cropActive;
+
+  // Bake crop as RATIOS relative to the current frame size.
+  // This way normal resize scales the image proportionally with the frame.
+  const ox = imgCanvasX - el.x;  // image left offset inside frame at exit time
+  const oy = imgCanvasY - el.y;  // image top offset inside frame at exit time
+  el._imgOXRatio = ox / el.w;
+  el._imgOYRatio = oy / el.h;
+  el._imgWRatio  = rendW / el.w;
+  el._imgHRatio  = rendH / el.h;
+
+  // Clean up legacy fields if present
+  delete el.imgOffsetX; delete el.imgOffsetY;
+  delete el._rendW;     delete el._rendH;
+
+  // Clean up styling
+  hint.remove();
+  div.style.outline       = '';
+  div.style.outlineOffset = '';
+  div.style.boxShadow     = '';
+
+  // Restore resize handles to normal behaviour
+  const handles = [...div.querySelectorAll('.resize-handle')];
+  handles.forEach(h => {
+    const pos = h.dataset.pos;
+    const clone = h.cloneNode(true);
+    h.replaceWith(clone);
+    clone.addEventListener('mousedown', e => startResize(e, el.id, pos));
+  });
+
+  applyImgTransform();
+  saveHistory();
+  _cropActive = null;
+}
+
+// Exit crop mode when clicking anywhere outside the cropping element
+document.getElementById('canvas').addEventListener('mousedown', e => {
+  if (_cropActive && !_cropActive.div.contains(e.target)) exitCropMode();
+}, true);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && _cropActive) { exitCropMode(); e.stopPropagation(); }
+}, true);
+
+// Double-click on element while in crop mode → apply crop
+document.getElementById('canvas').addEventListener('dblclick', e => {
+  if (_cropActive && _cropActive.div.contains(e.target)) {
+    e.stopPropagation();
+    exitCropMode();
+  }
+}, true);
+
+// ─── RESIZE ──────────────────────────────────────────────────────
+let resizeState = null;
+let _shiftDown = false;
+document.addEventListener('keydown', e => { if (e.key === 'Shift') _shiftDown = true; });
+document.addEventListener('keyup',   e => { if (e.key === 'Shift') _shiftDown = false; });
+
+function startResize(e, id, pos) {
+  e.preventDefault();
+  e.stopPropagation();
+  const elSnap = elements.find(x => x.id === id);
+  if (!elSnap || elSnap.locked) return;
+  resizeState = { id, pos, startX: e.clientX, startY: e.clientY,
+    origX: elSnap.x, origY: elSnap.y, origW: elSnap.w, origH: elSnap.h };
+
+  const onMove = ev => {
+    if (!resizeState) return;
+    const el = elements.find(x => x.id === id);
+    if (!el) return;
+    const dx = (ev.clientX - resizeState.startX) / zoomLevel;
+    const dy = (ev.clientY - resizeState.startY) / zoomLevel;
+    const p = resizeState.pos;
+    const { origX, origY, origW, origH } = resizeState;
+
+    if (_shiftDown) {
+      // ── Constrained: maintain original aspect ratio ──
+      const ratio = origW / origH;
+      const absDx = Math.abs(dx), absDy = Math.abs(dy);
+      let newW, newH;
+      if (p === 'n' || p === 's') {
+        newH = Math.max(30, origH + (p === 's' ? dy : -dy));
+        newW = newH * ratio;
+      } else if (p === 'e' || p === 'w') {
+        newW = Math.max(30, origW + (p === 'e' ? dx : -dx));
+        newH = newW / ratio;
+      } else {
+        if (absDx / origW >= absDy / origH) {
+          newW = Math.max(30, origW + (p.includes('e') ? dx : -dx));
+          newH = newW / ratio;
+        } else {
+          newH = Math.max(30, origH + (p.includes('s') ? dy : -dy));
+          newW = newH * ratio;
+        }
+      }
+      el.w = newW; el.h = newH;
+      if (p.includes('w')) el.x = origX + (origW - el.w); else el.x = origX;
+      if (p.includes('n')) el.y = origY + (origH - el.h); else el.y = origY;
+    } else {
+      // ── Free resize — each axis independent ──
+      if (p.includes('e')) el.w = Math.max(30, origW + dx);
+      if (p.includes('s')) el.h = Math.max(30, origH + dy);
+      if (p.includes('w')) { el.w = Math.max(30, origW - dx); el.x = origX + (origW - el.w); }
+      if (p.includes('n')) { el.h = Math.max(30, origH - dy); el.y = origY + (origH - el.h); }
+    }
+
+    const dom = document.getElementById(id);
+    if (dom) {
+      dom.style.width = el.w + 'px'; dom.style.height = el.h + 'px';
+      dom.style.left = el.x + 'px'; dom.style.top = el.y + 'px';
+      const s = dom.querySelector('span');
+      if (s && el.emoji) s.style.fontSize = (el.w * 0.7) + 'px';
+      if (dom._applyImgTransform) dom._applyImgTransform();
+    }
+    updatePropertiesPanel();
+  };
+  const onUp = () => {
+    resizeState = null;
+    saveHistory();
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ─── DROP FROM SIDEBAR ───────────────────────────────────────────
+document.getElementById('canvas').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('canvas').classList.add('drag-over'); });
+document.getElementById('canvas').addEventListener('dragleave', () => document.getElementById('canvas').classList.remove('drag-over'));
+document.getElementById('canvas').addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('canvas').classList.remove('drag-over');
+  const canvas = document.getElementById('canvas');
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / zoomLevel - 60;
+  const y = (e.clientY - rect.top) / zoomLevel - 60;
+
+  const emoji = e.dataTransfer.getData('asset-emoji');
+  const name = e.dataTransfer.getData('asset-name');
+  const imgSrc = e.dataTransfer.getData('asset-img');
+
+  if (emoji) {
+    saveHistory();
+    const id = 'el-' + (++elementCounter);
+    const el = { id, name, emoji, x, y, w: 120, h: 120, opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1 };
+    elements.push(el);
+    renderElement(el);
+    selectElement(id);
+    updateLayers();
+    document.getElementById('emptyState').style.display = 'none';
+  } else if (imgSrc) {
+    saveHistory();
+    const id = 'el-' + (++elementCounter);
+    // Use natural image dimensions (capped at 300px on longest side) so
+    // free vs constrained resize is immediately distinguishable
+    const tempImg = new Image();
+    tempImg.onload = () => {
+      const maxSide = 300;
+      const nat = tempImg.naturalWidth / tempImg.naturalHeight;
+      let w, h;
+      if (nat >= 1) { w = maxSide; h = Math.round(maxSide / nat); }
+      else          { h = maxSide; w = Math.round(maxSide * nat); }
+      const el = { id, name: name || 'Image', imgSrc, x, y, w, h,
+        opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1 };
+      elements.push(el);
+      renderElement(el);
+      selectElement(id);
+      updateLayers();
+      document.getElementById('emptyState').style.display = 'none';
+    };
+    tempImg.onerror = () => {
+      // Fallback to square if image fails to load
+      const el = { id, name: name || 'Image', imgSrc, x, y, w: 160, h: 160,
+        opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1 };
+      elements.push(el);
+      renderElement(el);
+      selectElement(id);
+      updateLayers();
+      document.getElementById('emptyState').style.display = 'none';
+    };
+    tempImg.src = imgSrc;
+  }
+});
+
+// ─── MULTI-SELECT STATE ───────────────────────────────────────────
+let selectedIds = []; // multi-select set
+
+function selectElement(id) {
+  selectedId = id;
+  selectedIds = id ? [id] : [];
+  _applySelectionVisuals();
+  updatePropertiesPanel();
+  updateLayers();
+}
+
+function _applySelectionVisuals() {
+  document.querySelectorAll('.canvas-element').forEach(el => {
+    el.classList.remove('selected', 'multi-selected');
+  });
+  if (selectedIds.length === 1) {
+    document.getElementById(selectedIds[0])?.classList.add('selected');
+  } else if (selectedIds.length > 1) {
+    selectedIds.forEach(id => document.getElementById(id)?.classList.add('multi-selected'));
+  }
+  _updateGroupBox();
+}
+
+function _updateGroupBox() {
+  const box = document.getElementById('multiSelectBox');
+  if (selectedIds.length < 2) { box.classList.remove('active'); return; }
+
+  const sel = elements.filter(e => selectedIds.includes(e.id));
+  const minX = Math.min(...sel.map(e => e.x));
+  const minY = Math.min(...sel.map(e => e.y));
+  const maxX = Math.max(...sel.map(e => e.x + e.w));
+  const maxY = Math.max(...sel.map(e => e.y + e.h));
+  const pad = 6;
+  box.style.left   = (minX - pad) + 'px';
+  box.style.top    = (minY - pad) + 'px';
+  box.style.width  = (maxX - minX + pad * 2) + 'px';
+  box.style.height = (maxY - minY + pad * 2) + 'px';
+  box.classList.add('active');
+}
+
+// Deselect / rubber-band on canvas background mousedown
+document.getElementById('canvas').addEventListener('mousedown', e => {
+  const isBackground = e.target === document.getElementById('canvas')
+    || e.target.id === 'emptyState'
+    || e.target.closest('.canvas-empty')
+    || e.target.id === 'selectionRect';
+  const isGroupBox = e.target.closest('#multiSelectBox');
+  if (isGroupBox) return;
+  if (isBackground) {
+    selectElement(null);
+    startRubberBand(e);
+  }
+});
+
+// ── Rubber-band drag selection ────────────────────────────────────
+function startRubberBand(e) {
+  const canvas = document.getElementById('canvas');
+  const rect = canvas.getBoundingClientRect();
+  const startX = (e.clientX - rect.left) / zoomLevel;
+  const startY = (e.clientY - rect.top)  / zoomLevel;
+  const selRect = document.getElementById('selectionRect');
+  selRect.style.display = 'block';
+  selRect.style.left = startX + 'px';
+  selRect.style.top  = startY + 'px';
+  selRect.style.width  = '0px';
+  selRect.style.height = '0px';
+
+  function onMove(ev) {
+    const cx = (ev.clientX - rect.left) / zoomLevel;
+    const cy = (ev.clientY - rect.top)  / zoomLevel;
+    const x = Math.min(cx, startX), y = Math.min(cy, startY);
+    const w = Math.abs(cx - startX),  h = Math.abs(cy - startY);
+    selRect.style.left   = x + 'px';
+    selRect.style.top    = y + 'px';
+    selRect.style.width  = w + 'px';
+    selRect.style.height = h + 'px';
+  }
+
+  function onUp(ev) {
+    selRect.style.display = 'none';
+    document.removeEventListener('mousemove', onMove);
+    const cx = (ev.clientX - rect.left) / zoomLevel;
+    const cy = (ev.clientY - rect.top)  / zoomLevel;
+    const rx = Math.min(cx, startX), ry = Math.min(cy, startY);
+    const rw = Math.abs(cx - startX),  rh = Math.abs(cy - startY);
+    if (rw < 4 && rh < 4) return; // tiny click — don't select anything
+
+    const hit = elements.filter(el =>
+      el.x + el.w > rx && el.x < rx + rw &&
+      el.y + el.h > ry && el.y < ry + rh
+    );
+    if (hit.length === 1) {
+      selectElement(hit[0].id);
+    } else if (hit.length > 1) {
+      selectedId = hit[hit.length - 1].id;
+      selectedIds = hit.map(e => e.id);
+      _applySelectionVisuals();
+      updatePropertiesPanel();
+      updateLayers();
+    }
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp, { once: true });
+}
+
+// ── Shift-click to add/remove from selection ──────────────────────
+function toggleSelectElement(id, e) {
+  if (e.shiftKey) {
+    if (selectedIds.includes(id)) {
+      selectedIds = selectedIds.filter(x => x !== id);
+      selectedId = selectedIds[selectedIds.length - 1] || null;
+    } else {
+      selectedIds.push(id);
+      selectedId = id;
+    }
+    _applySelectionVisuals();
+    updatePropertiesPanel();
+    updateLayers();
+  } else {
+    selectElement(id);
+  }
+}
+
+// ── Group drag ────────────────────────────────────────────────────
+function startDrag(e, id) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Shift-click toggles membership
+  if (e.shiftKey) { toggleSelectElement(id, e); return; }
+
+  // If clicking an element not in current selection, switch to single
+  if (!selectedIds.includes(id)) selectElement(id);
+
+  const dragging = elements.filter(el => selectedIds.includes(el.id));
+  const origPositions = dragging.map(el => ({ id: el.id, x: el.x, y: el.y }));
+  const startX = e.clientX, startY = e.clientY;
+  let moved = false;
+
+  const onMove = ev => {
+    const dx = (ev.clientX - startX) / zoomLevel;
+    const dy = (ev.clientY - startY) / zoomLevel;
+    moved = true;
+    dragging.forEach((el, i) => {
+      el.x = origPositions[i].x + dx;
+      el.y = origPositions[i].y + dy;
+      const dom = document.getElementById(el.id);
+      if (dom) { dom.style.left = el.x + 'px'; dom.style.top = el.y + 'px'; }
+    });
+    _updateGroupBox();
+    if (selectedIds.length === 1) updatePropertiesPanel();
+  };
+
+  const onUp = () => {
+    if (moved) saveHistory();
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ── Group resize via the blue bounding box handles ────────────────
+document.querySelectorAll('#multiSelectBox .ms-handle').forEach(handle => {
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    startGroupResize(e, handle.dataset.pos);
+  });
+});
+
+function startGroupResize(e, pos) {
+  const sel = elements.filter(el => selectedIds.includes(el.id));
+  if (!sel.length) return;
+
+  // Record the group bounding box and each element's relative position within it
+  const gx = Math.min(...sel.map(el => el.x));
+  const gy = Math.min(...sel.map(el => el.y));
+  const gw = Math.max(...sel.map(el => el.x + el.w)) - gx;
+  const gh = Math.max(...sel.map(el => el.y + el.h)) - gy;
+
+  const origGroup  = { x: gx, y: gy, w: gw, h: gh };
+  const origEls    = sel.map(el => ({ id: el.id, x: el.x, y: el.y, w: el.w, h: el.h }));
+  const startX = e.clientX, startY = e.clientY;
+
+  function onMove(ev) {
+    const dx = (ev.clientX - startX) / zoomLevel;
+    const dy = (ev.clientY - startY) / zoomLevel;
+
+    let nx = origGroup.x, ny = origGroup.y, nw = origGroup.w, nh = origGroup.h;
+    if (pos.includes('e')) nw = Math.max(20, origGroup.w + dx);
+    if (pos.includes('s')) nh = Math.max(20, origGroup.h + dy);
+    if (pos.includes('w')) { nw = Math.max(20, origGroup.w - dx); nx = origGroup.x + (origGroup.w - nw); }
+    if (pos.includes('n')) { nh = Math.max(20, origGroup.h - dy); ny = origGroup.y + (origGroup.h - nh); }
+
+    const scaleX = nw / origGroup.w;
+    const scaleY = nh / origGroup.h;
+
+    origEls.forEach(orig => {
+      const el = elements.find(e => e.id === orig.id);
+      if (!el) return;
+      el.x = nx + (orig.x - origGroup.x) * scaleX;
+      el.y = ny + (orig.y - origGroup.y) * scaleY;
+      el.w = Math.max(10, orig.w * scaleX);
+      el.h = Math.max(10, orig.h * scaleY);
+      const dom = document.getElementById(el.id);
+      if (dom) {
+        dom.style.left = el.x + 'px'; dom.style.top = el.y + 'px';
+        dom.style.width = el.w + 'px'; dom.style.height = el.h + 'px';
+        const sp = dom.querySelector('span');
+        if (sp && el.emoji) sp.style.fontSize = (el.w * 0.7) + 'px';
+      }
+    });
+    _updateGroupBox();
+  }
+
+  function onUp() {
+    saveHistory();
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ─── LAYER CONTROLS ──────────────────────────────────────────────
+function moveLayer(dir) {
+  if (!selectedId) return;
+  const idx = elements.findIndex(e => e.id === selectedId);
+  if (dir === 'up' && idx < elements.length - 1) {
+    [elements[idx], elements[idx+1]] = [elements[idx+1], elements[idx]];
+  } else if (dir === 'down' && idx > 0) {
+    [elements[idx], elements[idx-1]] = [elements[idx-1], elements[idx]];
+  } else if (dir === 'top') {
+    const el = elements.splice(idx, 1)[0];
+    elements.push(el);
+  } else if (dir === 'bottom') {
+    const el = elements.splice(idx, 1)[0];
+    elements.unshift(el);
+  }
+  elements.forEach((el, i) => { el.zIndex = i + 1; });
+  elements.forEach(el => {
+    const dom = document.getElementById(el.id);
+    if (dom) dom.style.zIndex = el.zIndex;
+  });
+  updateLayers();
+  saveHistory();
+}
+
+// ─── FLIP ────────────────────────────────────────────────────────
+function flipH() {
+  if (!selectedId) return;
+  const el = elements.find(e => e.id === selectedId);
+  el.flipH = !el.flipH;
+  applyTransform(el);
+}
+function flipV() {
+  if (!selectedId) return;
+  const el = elements.find(e => e.id === selectedId);
+  el.flipV = !el.flipV;
+  applyTransform(el);
+}
+function applyTransform(el) {
+  const dom = document.getElementById(el.id);
+  if (dom) dom.style.transform = `scaleX(${el.flipH ? -1 : 1}) scaleY(${el.flipV ? -1 : 1}) rotate(${el.rotation || 0}deg)`;
+  saveHistory();
+}
+
+// ─── DUPLICATE / DELETE ──────────────────────────────────────────
+function duplicateSelected() {
+  if (!selectedId) return;
+  saveHistory();
+  const orig = elements.find(e => e.id === selectedId);
+  if (orig?.locked) { showToast('Unlock element before duplicating'); return; }
+  const id = 'el-' + (++elementCounter);
+  const el = { ...orig, id, x: orig.x + 20, y: orig.y + 20, zIndex: elements.length + 1 };
+  elements.push(el);
+  renderElement(el);
+  selectElement(id);
+  updateLayers();
+}
+
+function toggleLock() {
+  if (!selectedId) return;
+  const el = elements.find(e => e.id === selectedId);
+  if (!el) return;
+  el.locked = !el.locked;
+  const dom = document.getElementById(el.id);
+  if (dom) dom.classList.toggle('locked', el.locked);
+  document.getElementById('lockBtn').textContent = el.locked ? '🔒' : '🔓';
+  updateLayers();
+  showToast(el.locked ? `"${el.name}" locked` : `"${el.name}" unlocked`);
+}
+
+// ─── ZOOM TO FIT ─────────────────────────────────────────────────
+function zoomToFit() {
+  const wrapper = document.getElementById('canvasWrapper');
+  const canvas  = document.getElementById('canvas');
+  const pad = 60;
+  const scaleX = (wrapper.clientWidth  - pad * 2) / canvas.clientWidth;
+  const scaleY = (wrapper.clientHeight - pad * 2) / canvas.clientHeight;
+  zoomLevel = Math.max(0.1, Math.min(scaleX, scaleY));
+  canvas.style.transform = `scale(${zoomLevel})`;
+  document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+}
+
+function deleteSelected() {
+  if (!selectedId) return;
+  saveHistory();
+  elements = elements.filter(e => e.id !== selectedId);
+  const dom = document.getElementById(selectedId);
+  if (dom) dom.remove();
+  selectElement(null);
+  updateLayers();
+  if (!elements.length) document.getElementById('emptyState').style.display = 'flex';
+}
+
+// ─── ZOOM ────────────────────────────────────────────────────────
+function zoom(delta) {
+  zoomLevel = Math.max(0.25, Math.min(3, zoomLevel + delta));
+  document.getElementById('canvas').style.transform = `scale(${zoomLevel})`;
+  document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+}
+function resetZoom() { zoomLevel = 1; zoom(0); }
+
+// ─── CLEAR ───────────────────────────────────────────────────────
+function clearCanvas() {
+  if (!elements.length) {
+    showToast('Canvas is already empty');
+    return;
+  }
+  saveHistory();
+  elements.length = 0;
+  document.querySelectorAll('#canvas .canvas-element').forEach(el => el.remove());
+  selectElement(null);
+  updateLayers();
+  const emptyState = document.getElementById('emptyState');
+  emptyState.style.display = 'flex';
+  emptyState.style.opacity = '0.35';
+  showToast('Canvas cleared — Ctrl+Z to undo');
+}
+
+// ─── PROPERTIES PANEL ────────────────────────────────────────────
+function updatePropertiesPanel() {
+  const panel = document.getElementById('propertiesPanel');
+  if (!selectedId) {
+    panel.innerHTML = '<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:8px 0;">No element selected</div>';
+    return;
+  }
+  const el = elements.find(e => e.id === selectedId);
+  if (!el) return;
+  panel.innerHTML = `
+    <div class="prop-row">
+      <span class="prop-label">X</span>
+      <input class="prop-input" type="number" value="${Math.round(el.x)}" onchange="updateProp('x',+this.value)">
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Y</span>
+      <input class="prop-input" type="number" value="${Math.round(el.y)}" onchange="updateProp('y',+this.value)">
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">W</span>
+      <input class="prop-input" type="number" value="${Math.round(el.w)}" onchange="updateProp('w',+this.value)">
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">H</span>
+      <input class="prop-input" type="number" value="${Math.round(el.h)}" onchange="updateProp('h',+this.value)">
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Rot</span>
+      <input class="prop-input" type="number" value="${el.rotation || 0}" onchange="updateProp('rotation',+this.value)">
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Blend</span>
+      <select class="blend-select" onchange="updateProp('blendMode',this.value)">
+        ${['normal','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','soft-light','hard-light','difference','exclusion'].map(m =>
+          `<option value="${m}" ${(el.blendMode||'normal')===m?'selected':''}>${m}</option>`
+        ).join('')}
+      </select>
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Opacity</span>
+    </div>
+    <input type="range" class="opacity-slider" min="0" max="1" step="0.05" value="${el.opacity}" oninput="updateProp('opacity',+this.value)">
+  `;
+  // Sync lock button
+  const lockBtn = document.getElementById('lockBtn');
+  if (lockBtn) lockBtn.textContent = el.locked ? '🔒' : '🔓';
+}
+
+function updateProp(prop, val) {
+  if (!selectedId) return;
+  const el = elements.find(e => e.id === selectedId);
+  el[prop] = val;
+  const dom = document.getElementById(selectedId);
+  if (prop === 'x') dom.style.left = val + 'px';
+  else if (prop === 'y') dom.style.top = val + 'px';
+  else if (prop === 'w') { dom.style.width = val + 'px'; const s = dom.querySelector('span'); if (s && el.emoji) s.style.fontSize = (val * 0.7) + 'px'; }
+  else if (prop === 'h') dom.style.height = val + 'px';
+  else if (prop === 'opacity') dom.style.opacity = val;
+  else if (prop === 'rotation') applyTransform(el);
+  else if (prop === 'blendMode') dom.style.mixBlendMode = val || 'normal';
+}
+
+// ─── LAYERS LIST ─────────────────────────────────────────────────
+let layerDragState = null;
+
+function updateLayers() {
+  const list = document.getElementById('layersList');
+  if (!elements.length) {
+    list.innerHTML = '<div class="no-elements">No elements yet</div>';
+    return;
+  }
+  list.innerHTML = '';
+
+  // Layers are shown top-to-bottom = highest z-index first (reversed elements array)
+  [...elements].reverse().forEach((el, reversedIdx) => {
+    // Drop indicator above each row
+    const indicator = document.createElement('div');
+    indicator.className = 'layer-drop-indicator';
+    indicator.dataset.insertBefore = reversedIdx; // position in the reversed list
+    list.appendChild(indicator);
+
+    const item = document.createElement('div');
+    item.className = 'layer-item' + (el.id === selectedId ? ' selected' : '');
+    item.dataset.elId = el.id;
+    item.dataset.reversedIdx = reversedIdx;
+
+    // Thumb
+    const thumb = document.createElement('div');
+    thumb.className = 'layer-thumb';
+    if (el.imgSrc) {
+      thumb.innerHTML = `<img src="${el.imgSrc}">`;
+    } else {
+      thumb.innerHTML = `<span style="font-size:18px;">${el.emoji || (el.colorBg ? '🎨' : 'T')}</span>`;
+    }
+
+    // Drag handle
+    const handle = document.createElement('span');
+    handle.className = 'layer-drag-handle';
+    handle.title = 'Drag to reorder';
+    handle.innerHTML = '⠿';
+
+    // Name
+    const name = document.createElement('span');
+    name.className = 'layer-name';
+    name.textContent = el.name;
+
+    // Delete + lock buttons
+    const actions = document.createElement('div');
+    actions.className = 'layer-actions';
+    const lockBtn = document.createElement('button');
+    lockBtn.className = 'layer-lock-btn' + (el.locked ? ' locked' : '');
+    lockBtn.title = el.locked ? 'Unlock' : 'Lock';
+    lockBtn.textContent = el.locked ? '🔒' : '🔓';
+    lockBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      el.locked = !el.locked;
+      const dom = document.getElementById(el.id);
+      if (dom) dom.classList.toggle('locked', el.locked);
+      if (selectedId === el.id) {
+        document.getElementById('lockBtn').textContent = el.locked ? '🔒' : '🔓';
+      }
+      updateLayers();
+    });
+    actions.innerHTML = `<button class="layer-action-btn" title="Delete">✕</button>`;
+    actions.querySelector('button').addEventListener('click', e => deleteElementById(el.id, e));
+    actions.prepend(lockBtn);
+
+    item.appendChild(handle);
+    item.appendChild(thumb);
+    item.appendChild(name);
+    item.appendChild(actions);
+
+    // Click to select
+    item.addEventListener('click', () => selectElement(el.id));
+
+    // Drag-to-reorder — only triggered from the handle
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      startLayerDrag(e, el.id, reversedIdx, item);
+    });
+
+    list.appendChild(item);
+  });
+
+  // Final drop indicator at the very bottom
+  const bottomIndicator = document.createElement('div');
+  bottomIndicator.className = 'layer-drop-indicator';
+  bottomIndicator.dataset.insertBefore = elements.length; // after everything
+  list.appendChild(bottomIndicator);
+}
+
+function startLayerDrag(e, elId, startReversedIdx, itemEl) {
+  const ghost = document.getElementById('layer-ghost');
+  ghost.innerHTML = itemEl.innerHTML;
+  ghost.style.display = 'flex';
+  ghost.style.left = e.clientX + 12 + 'px';
+  ghost.style.top  = e.clientY - 16 + 'px';
+
+  itemEl.classList.add('layer-dragging');
+
+  layerDragState = { elId, startReversedIdx, currentInsertBefore: startReversedIdx };
+
+  const list = document.getElementById('layersList');
+
+  function getRows() {
+    // All actual layer-item rows (not indicators)
+    return [...list.querySelectorAll('.layer-item')];
+  }
+
+  function getIndicators() {
+    return [...list.querySelectorAll('.layer-drop-indicator')];
+  }
+
+  // Given mouse Y, compute which reversedIdx slot the item should be inserted before.
+  // We look at the midpoint of each visible row to decide above/below.
+  function calcInsertBefore(clientY) {
+    const rows = getRows();
+    // Walk through rows top to bottom; each row corresponds to reversedIdx 0,1,2...
+    for (let i = 0; i < rows.length; i++) {
+      const rect = rows[i].getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (clientY < mid) return i; // insert before this row
+    }
+    return rows.length; // insert after all rows
+  }
+
+  function onMove(ev) {
+    if (!layerDragState) return; // guard: mouseup may have already fired
+
+    ghost.style.left = ev.clientX + 12 + 'px';
+    ghost.style.top  = ev.clientY - 16 + 'px';
+
+    const insertBefore = calcInsertBefore(ev.clientY);
+    layerDragState.currentInsertBefore = insertBefore;
+
+    // Light up the matching indicator
+    getIndicators().forEach(ind => {
+      ind.classList.toggle('active', parseInt(ind.dataset.insertBefore) === insertBefore);
+    });
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    ghost.style.display = 'none';
+    getIndicators().forEach(i => i.classList.remove('active'));
+    itemEl.classList.remove('layer-dragging');
+
+    const { elId, startReversedIdx, currentInsertBefore } = layerDragState;
+    layerDragState = null;
+
+    // No-op: dropped on own position
+    if (currentInsertBefore === startReversedIdx ||
+        currentInsertBefore === startReversedIdx + 1) {
+      updateLayers();
+      return;
+    }
+
+    saveHistory();
+
+    const n = elements.length;
+
+    // Map reversed index → actual index: actual = (n - 1 - reversed)
+    const fromActual = n - 1 - startReversedIdx;
+    const [moved] = elements.splice(fromActual, 1);
+
+    // After splice, array length is n-1.
+    // The target reversed slot needs to map to the correct actual position.
+    // "insertBefore reversedSlot R" means the item lands at reversed index R
+    // in the new (shorter) list, i.e. actual index = (n-1) - R.
+    // But if R > startReversedIdx (moving down in panel = lower z-index),
+    // one item has been removed from above R, so subtract 1 more.
+    let targetReversed = currentInsertBefore;
+    if (currentInsertBefore > startReversedIdx) targetReversed -= 1;
+
+    let toActual = (n - 1) - targetReversed;
+    toActual = Math.max(0, Math.min(n - 1, toActual));
+
+    elements.splice(toActual, 0, moved);
+
+    elements.forEach((el, i) => {
+      el.zIndex = i + 1;
+      const dom = document.getElementById(el.id);
+      if (dom) dom.style.zIndex = el.zIndex;
+    });
+
+    updateLayers();
+    selectElement(elId);
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp, { once: true });
+}
+
+function deleteElementById(id, e) {
+  e.stopPropagation();
+  saveHistory();
+  elements = elements.filter(el => el.id !== id);
+  document.getElementById(id)?.remove();
+  if (selectedId === id) selectElement(null);
+  updateLayers();
+  if (!elements.length) document.getElementById('emptyState').style.display = 'flex';
+}
+
+// ─── ASSET HOVER PREVIEW ─────────────────────────────────────────
+let _previewTimer = null;
+function showAssetPreview(tileEl, item) {
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(() => {
+    const preview = document.getElementById('assetHoverPreview');
+    const img = document.getElementById('hoverPreviewImg');
+    const nameEl = document.getElementById('hoverPreviewName');
+    const tagsEl = document.getElementById('hoverPreviewTags');
+    img.src = item.imgSrc || '';
+    nameEl.textContent = item.name;
+    tagsEl.innerHTML = (item.tags || []).map(t => `<span class="preview-tag">${t}</span>`).join('');
+    // Position to the right of the sidebar
+    const rect = tileEl.getBoundingClientRect();
+    const ph = 170; // approx preview height
+    let top = rect.top + rect.height / 2 - ph / 2;
+    top = Math.max(8, Math.min(window.innerHeight - ph - 8, top));
+    preview.style.left = (rect.right + 10) + 'px';
+    preview.style.top  = top + 'px';
+    preview.classList.add('visible');
+  }, 280); // slight delay so it doesn't flicker on quick passes
+}
+function hideAssetPreview() {
+  clearTimeout(_previewTimer);
+  document.getElementById('assetHoverPreview').classList.remove('visible');
+}
+
+
+function getSelectedUploadCategory() {
+  return document.getElementById('uploadCategorySelect').value || 'My Assets';
+}
+
+function handleFileUpload(event) {
+  const files = Array.from(event.target.files);
+  const catName = getSelectedUploadCategory();
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const src = e.target.result;
+      const name = file.name.replace(/\.[^.]+$/, '');
+      addAssetToLibrary(src, name, catName);
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function addAssetToLibrary(src, name, catName) {
+  getOrCreateUserCategory(catName);
+  // Avoid duplicates by name within same category
+  if (!userAssets[catName].some(a => a.name === name)) {
+    userAssets[catName].push({ name, imgSrc: src });
+  }
+  // Persist immediately
+  saveUserAssets();
+  // Refresh the assets tab so the item is visible there immediately
+  renderAssets(document.getElementById('assetSearch').value);
+  showToast(`"${name}" added to ${catName}`);
+}
+
+// Upload zone drag-and-drop (files dragged onto the upload zone)
+document.addEventListener('DOMContentLoaded', () => {
+  const uploadZone = document.getElementById('uploadZone');
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.style.borderColor = 'var(--gold)'; });
+  uploadZone.addEventListener('dragleave', () => uploadZone.style.borderColor = '');
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.style.borderColor = '';
+    const catName = getSelectedUploadCategory();
+    Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => addAssetToLibrary(ev.target.result, file.name.replace(/\.[^.]+$/, ''), catName);
+      reader.readAsDataURL(file);
+    });
+  });
+});
+
+// ─── EXPORT ──────────────────────────────────────────────────────
+async function exportCanvas() {
+  if (!elements.length) { showToast('Nothing on canvas to export'); return; }
+
+  const btn = document.querySelector('[onclick="exportCanvas()"]');
+  if (btn) { btn.textContent = 'Exporting…'; btn.disabled = true; }
+
+  try {
+    const canvasEl = document.getElementById('canvas');
+    const canvasScale = parseFloat(canvasEl.dataset.scale) || 1;
+    const realW = parseFloat(canvasEl.dataset.realWidth)  || canvasEl.clientWidth;
+    const realH = parseFloat(canvasEl.dataset.realHeight) || canvasEl.clientHeight;
+    const toReal = 1 / canvasScale; // display px → real px
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = realW;
+    offscreen.height = realH;
+    const ctx = offscreen.getContext('2d');
+
+    // Background
+    const bgColor = canvasEl.style.backgroundColor;
+    ctx.fillStyle = bgColor && bgColor !== '' ? bgColor : '#ffffff';
+    ctx.fillRect(0, 0, realW, realH);
+
+    const sorted = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+    for (const el of sorted) {
+      const ex = el.x * toReal;
+      const ey = el.y * toReal;
+      const ew = el.w * toReal;
+      const eh = el.h * toReal;
+      const cx = ex + ew / 2;
+      const cy = ey + eh / 2;
+
+      ctx.save();
+      ctx.globalAlpha = el.opacity ?? 1;
+      ctx.translate(cx, cy);
+      if (el.flipH || el.flipV) ctx.scale(el.flipH ? -1 : 1, el.flipV ? -1 : 1);
+      if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
+
+      if (el.colorBg) {
+        const bg = el.colorBg;
+        if (bg.startsWith('linear') || bg.startsWith('radial')) {
+          const colorMatch = bg.match(/#[0-9a-f]{3,6}|rgb\([^)]+\)/i);
+          ctx.fillStyle = colorMatch ? colorMatch[0] : '#cccccc';
+        } else {
+          ctx.fillStyle = bg;
+        }
+        ctx.fillRect(-ew / 2, -eh / 2, ew, eh);
+
+      } else if (el.imgSrc) {
+        try {
+          const img = await loadImage(el.imgSrc);
+          // Clip to frame bounds
+          ctx.beginPath();
+          ctx.rect(-ew / 2, -eh / 2, ew, eh);
+          ctx.clip();
+
+          const hasCrop = el._imgOXRatio != null;
+          if (hasCrop) {
+            const ox = el._imgOXRatio * ew;
+            const oy = el._imgOYRatio * eh;
+            const rw = el._imgWRatio  * ew;
+            const rh = el._imgHRatio  * eh;
+            ctx.drawImage(img, -ew / 2 + ox, -eh / 2 + oy, rw, rh);
+          } else {
+            // object-fit: contain
+            const natRatio = img.naturalWidth / img.naturalHeight;
+            const boxRatio = ew / eh;
+            let dw, dh;
+            if (natRatio > boxRatio) { dw = ew; dh = ew / natRatio; }
+            else { dh = eh; dw = eh * natRatio; }
+            ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+          }
+        } catch(imgErr) {
+          console.warn('Export: could not draw image', el.name, imgErr);
+        }
+
+      } else if (el.emoji) {
+        const fontSize = Math.round(ew * 0.72);
+        ctx.font = `${fontSize}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000';
+        ctx.fillText(el.emoji, 0, 0);
+
+      } else if (el.isText) {
+        const fontSize = Math.round((el.fontSize || 24) * toReal);
+        ctx.font = `${fontSize}px serif`;
+        ctx.fillStyle = el.color || '#1a1210';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(el.text || '', -ew / 2, -eh / 2);
+      }
+
+      ctx.restore();
+    }
+
+    // Download as PNG
+    offscreen.toBlob(blob => {
+      if (!blob) { showToast('Export failed — canvas was empty'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `photokitchen-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast(`PNG exported at ${realW}×${realH}px ✓`);
+    }, 'image/png');
+
+  } catch(err) {
+    console.error('Export error:', err);
+    showToast('Export failed — check console for details');
+  } finally {
+    if (btn) { btn.textContent = 'Export PNG'; btn.disabled = false; }
+  }
+}
+
+// ─── UNDO / REDO ─────────────────────────────────────────────────
+function saveHistory() {
+  history.push(JSON.stringify(elements));
+  if (history.length > 40) history.shift();
+  redoStack = [];
+}
+
+function undo() {
+  if (!history.length) return;
+  redoStack.push(JSON.stringify(elements));
+  const prev = history.pop();
+  restoreState(JSON.parse(prev));
+  showToast('Undo');
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  history.push(JSON.stringify(elements));
+  const next = redoStack.pop();
+  restoreState(JSON.parse(next));
+  showToast('Redo');
+}
+
+function restoreState(state) {
+  document.querySelectorAll('.canvas-element').forEach(el => el.remove());
+  elements = state;
+  elements.forEach(el => renderElement(el));
+  selectElement(null);
+  updateLayers();
+  if (!elements.length) document.getElementById('emptyState').style.display = 'flex';
+  else document.getElementById('emptyState').style.display = 'none';
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ─── KEYBOARD SHORTCUTS ──────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
+  if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); duplicateSelected(); }
+  if (e.key === '0' && !e.ctrlKey && !e.metaKey) zoomToFit();
+  if (e.key === 'ArrowUp') { nudge(0, -2); }
+  if (e.key === 'ArrowDown') { nudge(0, 2); }
+  if (e.key === 'ArrowLeft') { nudge(-2, 0); }
+  if (e.key === 'ArrowRight') { nudge(2, 0); }
+  if (e.key === ']') moveLayer('up');
+  if (e.key === '[') moveLayer('down');
+});
+
+function nudge(dx, dy) {
+  if (!selectedId) return;
+  const el = elements.find(e => e.id === selectedId);
+  el.x += dx; el.y += dy;
+  const dom = document.getElementById(selectedId);
+  if (dom) { dom.style.left = el.x + 'px'; dom.style.top = el.y + 'px'; }
+  updatePropertiesPanel();
+}
+
+function setTool(tool) {
+  document.querySelectorAll('.tool-btn[id^="tool"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1))?.classList.add('active');
+}
+
+// ─── GALLERY (PERSISTENT STORAGE) ───────────────────────────────
+// Data shape stored under key 'gallery':
+// { folders: [ { id, name, sets: [ { id, name, date, thumbnail, canvasData } ] } ] }
+
+async function loadGalleryData() {
+  try {
+    const result = await window.storage.get('pk-gallery');
+    return result ? JSON.parse(result.value) : { folders: [] };
+  } catch { return { folders: [] }; }
+}
+
+async function saveGalleryData(data) {
+  try {
+    await window.storage.set('pk-gallery', JSON.stringify(data));
+  } catch (e) { showToast('Storage error — could not save'); }
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function canvasSnapshot() {
+  // Capture canvas background color + element list (lightweight — no image data reserialised)
+  const canvas = document.getElementById('canvas');
+  return {
+    bgColor: canvas.style.backgroundColor || '#ffffff',
+    canvasW: canvas.style.width,
+    canvasH: canvas.style.height,
+    elements: JSON.parse(JSON.stringify(elements))
+  };
+}
+
+// ── Save dialog ────────────────────────────────────────────────
+let _galleryCache = null; // avoid redundant storage reads within a session
+
+async function openSaveDialog() {
+  // _galleryCache is always warm — no storage read needed
+  const sel = document.getElementById('saveFolderSelect');
+  sel.innerHTML = '<option value="">— Select a folder —</option>';
+  _galleryCache.folders.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = f.name;
+    sel.appendChild(opt);
+  });
+  document.getElementById('saveSetName').value = '';
+  document.getElementById('saveNewFolderName').value = '';
+  document.getElementById('newFolderInSaveRow').style.display = 'none';
+  document.getElementById('saveFolderSelect').disabled = false;
+  document.getElementById('saveOverlay').classList.add('open');
+  document.getElementById('saveSetName').focus();
+}
+
+function closeSaveDialog() {
+  document.getElementById('saveOverlay').classList.remove('open');
+}
+
+function toggleNewFolderInSave() {
+  const row = document.getElementById('newFolderInSaveRow');
+  const isVisible = row.style.display !== 'none';
+  row.style.display = isVisible ? 'none' : 'block';
+  document.getElementById('saveFolderSelect').disabled = !isVisible;
+  if (!isVisible) document.getElementById('saveNewFolderName').focus();
+}
+
+async function confirmSave() {
+  const setName = document.getElementById('saveSetName').value.trim();
+  if (!setName) { document.getElementById('saveSetName').focus(); return; }
+
+  const newFolderRow = document.getElementById('newFolderInSaveRow');
+  const usingNewFolder = newFolderRow.style.display !== 'none';
+  let folderId;
+
+  if (usingNewFolder) {
+    const folderName = document.getElementById('saveNewFolderName').value.trim();
+    if (!folderName) { document.getElementById('saveNewFolderName').focus(); return; }
+    folderId = uid();
+    _galleryCache.folders.push({ id: folderId, name: folderName, sets: [] });
+  } else {
+    folderId = document.getElementById('saveFolderSelect').value;
+    if (!folderId) { showToast('Please select or create a folder'); return; }
+  }
+
+  const folder = _galleryCache.folders.find(f => f.id === folderId);
+  const thumbnail = await generateThumbnail();
+  folder.sets.push({
+    id: uid(),
+    name: setName,
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    thumbnail,
+    canvasData: canvasSnapshot()
+  });
+
+  await saveGalleryData(_galleryCache);
+  closeSaveDialog();
+  showToast(`"${setName}" saved to ${folder.name}`);
+}
+
+async function generateThumbnail() {
+  const canvasEl = document.getElementById('canvas');
+
+  // Use the unscaled canvas dimensions stored on the element, falling back to clientWidth/zoomLevel
+  // canvasScale = ratio used to shrink real canvas dims into display pixels (stored by changeCanvasSize)
+  // e.g. real=1920×1080, display=960×540 → canvasScale=0.5
+  // Element x/y/w/h are stored in DISPLAY pixel space, so divide by canvasScale first
+  // to get real-space coords, then scale down to thumbnail size.
+  const canvasScale = parseFloat(canvasEl.dataset.scale) || 1;
+  const srcW = parseFloat(canvasEl.dataset.realWidth)  || canvasEl.clientWidth;
+  const srcH = parseFloat(canvasEl.dataset.realHeight) || canvasEl.clientHeight;
+
+  const thumbW = 400;
+  const thumbH = Math.round(srcH * (thumbW / srcW));
+  // Combined: display→real (÷canvasScale) then real→thumb (×thumbW/srcW)
+  const toThumb = (thumbW / srcW) / canvasScale;
+
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = thumbW;
+  offscreen.height = thumbH;
+  const ctx = offscreen.getContext('2d');
+
+  ctx.fillStyle = canvasEl.style.backgroundColor || '#f5f0e8';
+  ctx.fillRect(0, 0, thumbW, thumbH);
+
+  const sorted = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+  for (const el of sorted) {
+    ctx.save();
+    ctx.globalAlpha = el.opacity ?? 1;
+
+    const ex = el.x * toThumb;
+    const ey = el.y * toThumb;
+    const ew = el.w * toThumb;
+    const eh = el.h * toThumb;
+    const cx = ex + ew / 2;
+    const cy = ey + eh / 2;
+
+    ctx.translate(cx, cy);
+    if (el.flipH || el.flipV) ctx.scale(el.flipH ? -1 : 1, el.flipV ? -1 : 1);
+    if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
+
+    if (el.colorBg) {
+      // For gradients, parse a rough solid approximation
+      const bg = el.colorBg;
+      if (bg.startsWith('linear') || bg.startsWith('radial')) {
+        // Extract first hex/rgb color from the gradient string
+        const colorMatch = bg.match(/#[0-9a-f]{3,6}|rgb\([^)]+\)/i);
+        ctx.fillStyle = colorMatch ? colorMatch[0] : '#cccccc';
+      } else {
+        ctx.fillStyle = bg;
+      }
+      ctx.fillRect(-ew / 2, -eh / 2, ew, eh);
+
+    } else if (el.imgSrc) {
+      try {
+        const img = await loadImage(el.imgSrc);
+
+        // Clip to the bounding box (replicates overflow:hidden on the frame)
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (el.flipH || el.flipV) ctx.scale(el.flipH ? -1 : 1, el.flipV ? -1 : 1);
+        if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
+        ctx.beginPath();
+        ctx.rect(-ew / 2, -eh / 2, ew, eh);
+        ctx.clip();
+
+        if (el._imgOXRatio != null) {
+          // Ratio-based crop
+          const ox = el._imgOXRatio * ew;
+          const oy = el._imgOYRatio * eh;
+          const rw = el._imgWRatio  * ew;
+          const rh = el._imgHRatio  * eh;
+          ctx.drawImage(img, -ew / 2 + ox, -eh / 2 + oy, rw, rh);
+        } else {
+          // Default object-fit:contain
+          const naturalRatio = img.naturalWidth / img.naturalHeight;
+          const boxRatio = ew / eh;
+          let dw, dh;
+          if (naturalRatio > boxRatio) { dw = ew; dh = ew / naturalRatio; }
+          else { dh = eh; dw = eh * naturalRatio; }
+          ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+        }
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = el.opacity ?? 1;
+        ctx.translate(cx, cy);
+        if (el.flipH || el.flipV) ctx.scale(el.flipH ? -1 : 1, el.flipV ? -1 : 1);
+        if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
+      } catch { /* skip broken images */ }
+
+    } else if (el.emoji) {
+      const fontSize = Math.max(12, Math.round(ew * 0.72));
+      ctx.font = `${fontSize}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(el.emoji, 0, 0);
+
+    } else if (el.isText) {
+      const fontSize = Math.max(8, Math.round((el.fontSize || 24) * toThumb));
+      ctx.font = `${fontSize}px serif`;
+      ctx.fillStyle = el.color || '#1a1210';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(el.text || '', -ew / 2, -eh / 2);
+    }
+
+    ctx.restore();
+  }
+
+  return offscreen.toDataURL('image/jpeg', 0.88);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    // crossOrigin only needed for external URLs, not data URIs
+    if (!src.startsWith('data:')) img.crossOrigin = 'anonymous';
+    img.onload  = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// ── Gallery panel ──────────────────────────────────────────────
+function openGallery() {
+  // _galleryCache is always warm — no storage read needed
+  renderGallery();
+  document.getElementById('galleryOverlay').classList.add('open');
+}
+
+function closeGallery() {
+  document.getElementById('galleryOverlay').classList.remove('open');
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('galleryOverlay')) closeGallery();
+}
+
+function renderGallery() {
+  const body = document.getElementById('galleryBody');
+  body.innerHTML = '';
+
+  if (!_galleryCache.folders.length) {
+    body.innerHTML = `<div class="gallery-empty">
+      <div class="gallery-empty-icon">🗂</div>
+      No saved sets yet.<br>Create a brand folder,<br>then save your first set.
+    </div>`;
+    return;
+  }
+
+  _galleryCache.folders.forEach(folder => {
+    const block = document.createElement('div');
+    block.className = 'folder-block open';
+    block.dataset.folderId = folder.id;
+
+    // ── Folder header ──
+    const hdr = document.createElement('div');
+    hdr.className = 'folder-header';
+    hdr.innerHTML = `
+      <span class="folder-chevron">▶</span>
+      <span class="folder-icon">📁</span>
+      <span class="folder-name">${escHtml(folder.name)}</span>
+      <span class="folder-count">${folder.sets.length} set${folder.sets.length !== 1 ? 's' : ''}</span>
+      <div class="folder-actions">
+        <button class="folder-action-btn" title="Rename folder">✏</button>
+        <button class="folder-action-btn danger" title="Delete folder">🗑</button>
+      </div>`;
+
+    hdr.addEventListener('click', e => {
+      if (e.target.closest('.folder-actions')) return;
+      block.classList.toggle('open');
+    });
+
+    hdr.querySelector('[title="Rename folder"]').addEventListener('click', e => {
+      e.stopPropagation();
+      inlineRenameFolder(folder, hdr.querySelector('.folder-name'));
+    });
+    hdr.querySelector('[title="Delete folder"]').addEventListener('click', e => {
+      e.stopPropagation();
+      confirmDeleteFolder(folder);
+    });
+
+    block.appendChild(hdr);
+
+    // ── Sets ──
+    const setsDiv = document.createElement('div');
+    setsDiv.className = 'folder-sets';
+
+    if (!folder.sets.length) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:11px;color:var(--text-muted);padding:8px 4px;text-align:center;';
+      empty.textContent = 'No sets yet — save one from the canvas.';
+      setsDiv.appendChild(empty);
+    }
+
+    folder.sets.forEach(set => {
+      const card = document.createElement('div');
+      card.className = 'set-card';
+      card.dataset.setId = set.id;
+
+      const thumb = document.createElement('div');
+      thumb.className = 'set-thumb';
+      if (set.thumbnail) {
+        thumb.innerHTML = `<img src="${set.thumbnail}" alt="${escHtml(set.name)}">`;
+      } else {
+        thumb.textContent = '🍽';
+      }
+
+      const footer = document.createElement('div');
+      footer.className = 'set-card-footer';
+
+      const info = document.createElement('div');
+      info.className = 'set-info';
+      info.innerHTML = `<div class="set-name">${escHtml(set.name)}</div>
+        <div class="set-meta">${set.date} · ${set.canvasData?.elements?.length ?? 0} elements</div>`;
+
+      const actions = document.createElement('div');
+      actions.className = 'set-actions';
+      actions.style.opacity = '1'; // always visible in new layout
+      actions.innerHTML = `
+        <button class="folder-action-btn" title="Load set" style="font-size:13px;">↩</button>
+        <button class="folder-action-btn" title="Rename set">✏</button>
+        <button class="folder-action-btn danger" title="Delete set">🗑</button>`;
+
+      actions.querySelector('[title="Load set"]').addEventListener('click', e => {
+        e.stopPropagation();
+        loadSet(set);
+      });
+      actions.querySelector('[title="Rename set"]').addEventListener('click', e => {
+        e.stopPropagation();
+        inlineRenameSet(set, info.querySelector('.set-name'));
+      });
+      actions.querySelector('[title="Delete set"]').addEventListener('click', e => {
+        e.stopPropagation();
+        confirmDeleteSet(folder, set);
+      });
+
+      footer.appendChild(info);
+      footer.appendChild(actions);
+      card.appendChild(thumb);
+      card.appendChild(footer);
+      card.addEventListener('click', () => loadSet(set));
+      setsDiv.appendChild(card);
+    });
+
+    block.appendChild(setsDiv);
+    body.appendChild(block);
+  });
+}
+
+// ── Load set onto canvas ───────────────────────────────────────
+function loadSet(set) {
+  if (!set.canvasData) { showToast('No canvas data found for this set'); return; }
+
+  if (elements.length) {
+    // Show inline confirmation on the set card instead of browser confirm()
+    const card = document.querySelector(`.set-card[data-set-id="${set.id}"]`);
+    if (card) {
+      const existing = card.querySelector('.load-confirm-bar');
+      if (existing) { existing.remove(); return; }
+      const bar = document.createElement('div');
+      bar.className = 'load-confirm-bar';
+      bar.style.cssText = `display:flex;align-items:center;justify-content:space-between;
+        padding:6px 8px;background:var(--subtle);border-top:1px solid var(--border);
+        font-size:10px;color:var(--ink-soft);gap:6px;margin-top:4px;border-radius:0 0 5px 5px;`;
+      bar.innerHTML = `<span>Replace current canvas?</span>
+        <div style="display:flex;gap:5px;flex-shrink:0;">
+          <button class="btn btn-ghost" style="padding:2px 8px;font-size:10px;">Cancel</button>
+          <button class="btn btn-gold" style="padding:2px 8px;font-size:10px;">Load</button>
+        </div>`;
+      card.appendChild(bar);
+      bar.querySelector('.btn-ghost').onclick = e => { e.stopPropagation(); bar.remove(); };
+      bar.querySelector('.btn-gold').onclick = e => { e.stopPropagation(); _doLoadSet(set); };
+      return;
+    }
+  }
+  _doLoadSet(set);
+}
+
+function _doLoadSet(set) {
+  const { bgColor, canvasW, canvasH, elements: savedEls } = set.canvasData;
+  const canvas = document.getElementById('canvas');
+
+  // Restore canvas size + scale metadata
+  canvas.style.backgroundColor = bgColor || '#ffffff';
+  if (canvasW) {
+    canvas.style.width  = canvasW;
+    canvas.style.height = canvasH;
+    // Recompute and restore scale metadata from the stored pixel dimensions
+    const displayW = parseFloat(canvasW);
+    const displayH = parseFloat(canvasH);
+    const realW = parseFloat(canvas.dataset.realWidth)  || displayW;
+    const realH = parseFloat(canvas.dataset.realHeight) || displayH;
+    canvas.dataset.scale = displayW / realW;
+  }
+
+  document.querySelectorAll('#canvas .canvas-element').forEach(el => el.remove());
+  elements.length = 0;
+  savedEls.forEach(el => elements.push(el));
+  elements.forEach(el => renderElement(el));
+  selectElement(null);
+  updateLayers();
+  document.getElementById('emptyState').style.display = elements.length ? 'none' : 'flex';
+
+  closeGallery();
+  showToast(`"${set.name}" loaded`);
+}
+
+// ── Inline rename ──────────────────────────────────────────────
+function inlineRenameFolder(folder, nameEl) {
+  const input = document.createElement('input');
+  input.className = 'inline-rename';
+  input.value = folder.name;
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+
+  async function commit() {
+    const val = input.value.trim();
+    if (val && val !== folder.name) {
+      folder.name = val;
+      await saveGalleryData(_galleryCache);
+    }
+    renderGallery();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') renderGallery();
+  });
+}
+
+function inlineRenameSet(set, nameEl) {
+  const input = document.createElement('input');
+  input.className = 'inline-rename';
+  input.value = set.name;
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+
+  async function commit() {
+    const val = input.value.trim();
+    if (val && val !== set.name) {
+      set.name = val;
+      await saveGalleryData(_galleryCache);
+    }
+    renderGallery();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') renderGallery();
+  });
+}
+
+// ── Delete ─────────────────────────────────────────────────────
+async function confirmDeleteFolder(folder) {
+  const folderId = folder.id;
+  // Show inline confirmation inside the folder block
+  const block = document.querySelector(`.folder-block[data-folder-id="${folderId}"]`);
+  if (!block) return;
+
+  // If already showing a confirm bar, remove it
+  const existing = block.querySelector('.delete-confirm-bar');
+  if (existing) { existing.remove(); return; }
+
+  const bar = document.createElement('div');
+  bar.className = 'delete-confirm-bar';
+  bar.style.cssText = `display:flex;align-items:center;justify-content:space-between;
+    padding:8px 12px;background:rgba(192,81,58,0.15);border-top:1px solid rgba(192,81,58,0.3);
+    font-size:11px;color:#e88;gap:8px;`;
+  bar.innerHTML = `
+    <span>Delete "${escHtml(folder.name)}"${folder.sets.length ? ` + ${folder.sets.length} set(s)` : ''}?</span>
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      <button class="btn btn-ghost" style="padding:3px 10px;font-size:11px;" id="cancelDelFolder">Cancel</button>
+      <button class="btn btn-primary" style="padding:3px 10px;font-size:11px;" id="doDelFolder">Delete</button>
+    </div>`;
+  block.appendChild(bar);
+
+  bar.querySelector('#cancelDelFolder').onclick = () => bar.remove();
+  bar.querySelector('#doDelFolder').onclick = async () => {
+    const name = folder.name;
+    _galleryCache.folders = _galleryCache.folders.filter(f => f.id !== folderId);
+    await saveGalleryData(_galleryCache);
+    renderGallery();
+    showToast(`Folder "${name}" deleted`);
+  };
+}
+
+async function confirmDeleteSet(folder, set) {
+  const setId = set.id;
+  const folderId = folder.id;
+  const card = document.querySelector(`.set-card[data-set-id="${setId}"]`);
+  if (!card) return;
+
+  const existing = card.querySelector('.delete-confirm-bar');
+  if (existing) { existing.remove(); return; }
+
+  const bar = document.createElement('div');
+  bar.className = 'delete-confirm-bar';
+  bar.style.cssText = `display:flex;align-items:center;justify-content:space-between;
+    padding:5px 8px;background:rgba(192,81,58,0.15);border-top:1px solid rgba(192,81,58,0.3);
+    font-size:10px;color:#e88;gap:6px;margin-top:4px;border-radius:0 0 6px 6px;`;
+  bar.innerHTML = `
+    <span>Delete this set?</span>
+    <div style="display:flex;gap:5px;flex-shrink:0;">
+      <button class="btn btn-ghost" style="padding:2px 8px;font-size:10px;">Cancel</button>
+      <button class="btn btn-primary" style="padding:2px 8px;font-size:10px;">Delete</button>
+    </div>`;
+  card.appendChild(bar);
+
+  bar.querySelector('.btn-ghost').onclick = e => { e.stopPropagation(); bar.remove(); };
+  bar.querySelector('.btn-primary').onclick = async e => {
+    e.stopPropagation();
+    const name = set.name;
+    const f = _galleryCache.folders.find(f => f.id === folderId);
+    if (f) f.sets = f.sets.filter(s => s.id !== setId);
+    await saveGalleryData(_galleryCache);
+    renderGallery();
+    showToast(`"${name}" deleted`);
+  };
+}
+
+async function promptNewFolder() {
+  const name = prompt('Brand folder name:');
+  if (!name?.trim()) return;
+  _galleryCache.folders.push({ id: uid(), name: name.trim(), sets: [] });
+  await saveGalleryData(_galleryCache);
+  renderGallery();
+  showToast(`Folder "${name.trim()}" created`);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── USER ASSET PERSISTENCE ──────────────────────────────────────
+async function saveUserAssets() {
+  try {
+    // Store only name + imgSrc per asset (what we already have)
+    await window.storage.set('pk-user-assets', JSON.stringify(userAssets));
+  } catch (e) {
+    console.warn('Could not save user assets:', e);
+  }
+}
+
+async function loadUserAssetsFromStorage() {
+  try {
+    const result = await window.storage.get('pk-user-assets');
+    if (!result) return;
+    const saved = JSON.parse(result.value);
+    // Merge saved assets into userAssets object
+    for (const catName in saved) {
+      if (!userAssets[catName]) userAssets[catName] = [];
+      saved[catName].forEach(item => {
+        // Avoid duplicates by name
+        if (!userAssets[catName].some(a => a.name === item.name)) {
+          userAssets[catName].push(item);
+        }
+      });
+      // Also ensure the category exists in the Upload dropdown
+      const sel = document.getElementById('uploadCategorySelect');
+      if (sel && ![...sel.options].some(o => o.value === catName)) {
+        const opt = document.createElement('option');
+        opt.value = catName; opt.textContent = catName;
+        sel.appendChild(opt);
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load user assets:', e);
+  }
+}
+
+// ─── INIT ────────────────────────────────────────────────────────
+async function init() {
+  await loadCollapseState();
+  await loadUserAssetsFromStorage();
+  // Pre-warm gallery cache so Save/Gallery buttons open instantly
+  _galleryCache = await loadGalleryData();
+  renderAssets();
+  changeCanvasSize('1920x1080');
+  showToast('Welcome to Photokitchen Set Builder 🍽');
+}
+init();
+</script>
+</body>
+</html>
