@@ -593,6 +593,30 @@
   /* ── LOCK ── */
   .canvas-element.locked { cursor: not-allowed !important; }
   .canvas-element.locked .resize-handle { display: none !important; }
+
+  /* ── ROTATION HANDLE ── */
+  .rotate-stem {
+    position: absolute;
+    top: -25px; left: calc(50% - 0.5px);
+    width: 1px; height: 25px;
+    background: var(--ink); opacity: 0.28;
+    display: none; pointer-events: none;
+  }
+  .rotate-handle {
+    position: absolute;
+    top: -35px; left: 50%;
+    transform: translateX(-50%);
+    width: 10px; height: 10px;
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+    display: none; z-index: 11;
+    cursor: crosshair; touch-action: none;
+  }
+  .canvas-element.selected .rotate-stem  { display: block; }
+  .canvas-element.selected .rotate-handle { display: block; }
+  .canvas-element.locked .rotate-stem   { display: none !important; }
+  .canvas-element.locked .rotate-handle { display: none !important; }
   .canvas-element.locked::after { border-style: dashed !important; opacity: 0.5; }
   .layer-lock-btn {
     background: none; border: none; color: var(--text-muted);
@@ -1890,8 +1914,18 @@ function renderElement(el) {
     h.addEventListener('mousedown', e => startResize(e, el.id, pos));
   });
 
+  // Rotation handle + connecting stem
+  const rotateStem = document.createElement('div');
+  rotateStem.className = 'rotate-stem';
+  div.appendChild(rotateStem);
+  const rotateHandle = document.createElement('div');
+  rotateHandle.className = 'rotate-handle';
+  div.appendChild(rotateHandle);
+  rotateHandle.addEventListener('mousedown', e => startRotate(e, el.id));
+
   div.addEventListener('mousedown', e => {
     if (e.target.classList.contains('resize-handle')) return;
+    if (e.target.classList.contains('rotate-handle')) return;
     if (_cropActive && _cropActive.div === div) return;
     if (el.locked) { selectElement(el.id); return; } // select but don't drag
     startDrag(e, el.id);
@@ -2047,6 +2081,42 @@ document.getElementById('canvas').addEventListener('dblclick', e => {
     exitCropMode();
   }
 }, true);
+
+// ─── ROTATE ──────────────────────────────────────────────────────
+function startRotate(e, id) {
+  e.preventDefault();
+  e.stopPropagation();
+  const el = elements.find(x => x.id === id);
+  if (!el || el.locked) return;
+
+  // Center of element in screen coords — stays correct even when already rotated
+  // because CSS rotation uses transform-origin:50% 50%, keeping the bbox center fixed.
+  const dom = document.getElementById(id);
+  const rect = dom.getBoundingClientRect();
+  const centerX = rect.left + rect.width  / 2;
+  const centerY = rect.top  + rect.height / 2;
+
+  const startAngle   = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
+  const startRotation = el.rotation || 0;
+
+  const onMove = ev => {
+    const angle = Math.atan2(ev.clientY - centerY, ev.clientX - centerX) * 180 / Math.PI;
+    let newRotation = ((startRotation + (angle - startAngle)) % 360 + 360) % 360;
+    if (_shiftDown) newRotation = Math.round(newRotation / 15) * 15;
+    el.rotation = newRotation;
+    applyTransform(el);
+    updatePropertiesPanel();
+  };
+
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    saveHistory();
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
 
 // ─── RESIZE ──────────────────────────────────────────────────────
 let resizeState = null;
