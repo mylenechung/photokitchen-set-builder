@@ -3547,6 +3547,11 @@ function _doLoadSet(set) {
   elements.length = 0;
   savedEls.forEach(el => elements.push(el));
   elements.forEach(el => renderElement(el));
+  // Advance elementCounter past the highest loaded ID to prevent collisions
+  savedEls.forEach(el => {
+    const n = parseInt((el.id || '').replace('el-', ''), 10);
+    if (!isNaN(n) && n > elementCounter) elementCounter = n;
+  });
   selectElement(null);
   updateLayers();
   document.getElementById('emptyState').style.display = elements.length ? 'none' : 'flex';
