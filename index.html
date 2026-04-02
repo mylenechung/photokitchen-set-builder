@@ -3201,14 +3201,13 @@ async function generateThumbnail() {
   // e.g. real=1920×1080, display=960×540 → canvasScale=0.5
   // Element x/y/w/h are stored in DISPLAY pixel space, so divide by canvasScale first
   // to get real-space coords, then scale down to thumbnail size.
-  const canvasScale = parseFloat(canvasEl.dataset.scale) || 1;
-  const srcW = parseFloat(canvasEl.dataset.realWidth)  || canvasEl.clientWidth;
-  const srcH = parseFloat(canvasEl.dataset.realHeight) || canvasEl.clientHeight;
+  // Element x/y/w/h are in display-pixel space, so map directly to thumbnail.
+  const displayW = canvasEl.clientWidth;
+  const displayH = canvasEl.clientHeight;
 
   const thumbW = 400;
-  const thumbH = Math.round(srcH * (thumbW / srcW));
-  // Combined: display→real (÷canvasScale) then real→thumb (×thumbW/srcW)
-  const toThumb = (thumbW / srcW) / canvasScale;
+  const thumbH = Math.round(displayH * (thumbW / displayW));
+  const toThumb = thumbW / displayW;
 
   const offscreen = document.createElement('canvas');
   offscreen.width  = thumbW;
@@ -3251,11 +3250,9 @@ async function generateThumbnail() {
       try {
         const img = await loadImage(el.imgSrc);
 
-        // Clip to the bounding box (replicates overflow:hidden on the frame)
+        // Origin is already at element center (outer ctx.translate above).
+        // Just clip to the bounding box and draw.
         ctx.save();
-        ctx.translate(cx, cy);
-        if (el.flipH || el.flipV) ctx.scale(el.flipH ? -1 : 1, el.flipV ? -1 : 1);
-        if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
         ctx.beginPath();
         ctx.rect(-ew / 2, -eh / 2, ew, eh);
         ctx.clip();
@@ -3277,11 +3274,6 @@ async function generateThumbnail() {
           ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
         }
         ctx.restore();
-        ctx.save();
-        ctx.globalAlpha = el.opacity ?? 1;
-        ctx.translate(cx, cy);
-        if (el.flipH || el.flipV) ctx.scale(el.flipH ? -1 : 1, el.flipV ? -1 : 1);
-        if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
       } catch { /* skip broken images */ }
 
     } else if (el.emoji) {
