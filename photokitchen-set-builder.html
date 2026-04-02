@@ -3212,12 +3212,7 @@ async function generateThumbnail() {
   const thumbH = Math.round(displayH * (thumbW / displayW));
   const toThumb = thumbW / displayW;
 
-  console.log('[thumbnail debug]', { displayW, displayH, canvasScale, realW, realH, toThumb, elementCount: elements.length });
-  if (elements.length) {
-    const el0 = elements[0];
-    console.log('[thumbnail debug] first element:', { x: el0.x, y: el0.y, w: el0.w, h: el0.h });
-    console.log('[thumbnail debug] → thumb coords:', { ex: el0.x*toThumb, ey: el0.y*toThumb, ew: el0.w*toThumb, eh: el0.h*toThumb, cx: el0.x*toThumb+el0.w*toThumb/2, cy: el0.y*toThumb+el0.h*toThumb/2 });
-  }
+
 
   const offscreen = document.createElement('canvas');
   offscreen.width  = thumbW;
