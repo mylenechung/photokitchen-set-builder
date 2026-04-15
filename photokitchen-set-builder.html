@@ -373,6 +373,9 @@
     position: relative;
     overflow: hidden;
     transition: box-shadow 0.2s;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    will-change: transform;
   }
   #canvas.drag-over { box-shadow: 0 0 0 2px var(--ink), 0 20px 60px rgba(0,0,0,0.1); }
 
@@ -1370,8 +1373,8 @@ function makeImageAssetEl(item, currentCat) {
     saveHistory();
     const canvas = document.getElementById('canvas');
     const id = 'el-' + (++elementCounter);
-    const x = 60 + Math.random() * (canvas.clientWidth - 200);
-    const y = 60 + Math.random() * (canvas.clientHeight - 200);
+    const x = Math.round(60 + Math.random() * (canvas.clientWidth - 200));
+    const y = Math.round(60 + Math.random() * (canvas.clientHeight - 200));
     const tempImg = new Image();
     tempImg.onload = () => {
       const maxSide = 300;
@@ -1863,8 +1866,8 @@ function addEmojiToCanvas(emoji, name) {
   const id = 'el-' + (++elementCounter);
   const el = {
     id, name, emoji,
-    x: 100 + Math.random() * (canvas.clientWidth - 200),
-    y: 80 + Math.random() * (canvas.clientHeight - 160),
+    x: Math.round(100 + Math.random() * (canvas.clientWidth - 200)),
+    y: Math.round(80 + Math.random() * (canvas.clientHeight - 160)),
     w: 120, h: 120,
     opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1
   };
@@ -2282,8 +2285,8 @@ document.getElementById('canvas').addEventListener('drop', e => {
   document.getElementById('canvas').classList.remove('drag-over');
   const canvas = document.getElementById('canvas');
   const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / zoomLevel - 60;
-  const y = (e.clientY - rect.top) / zoomLevel - 60;
+  const x = Math.round((e.clientX - rect.left) / zoomLevel - 60);
+  const y = Math.round((e.clientY - rect.top) / zoomLevel - 60);
 
   const emoji = e.dataTransfer.getData('asset-emoji');
   const name = e.dataTransfer.getData('asset-name');
@@ -2477,8 +2480,8 @@ function startDrag(e, id) {
     const dy = (ev.clientY - startY) / zoomLevel;
     moved = true;
     dragging.forEach((el, i) => {
-      el.x = origPositions[i].x + dx;
-      el.y = origPositions[i].y + dy;
+      el.x = Math.round(origPositions[i].x + dx);
+      el.y = Math.round(origPositions[i].y + dy);
       const dom = document.getElementById(el.id);
       if (dom) { dom.style.left = el.x + 'px'; dom.style.top = el.y + 'px'; }
     });
@@ -3697,7 +3700,13 @@ function _doLoadSet(set) {
 
   document.querySelectorAll('#canvas .canvas-element').forEach(el => el.remove());
   elements.length = 0;
-  savedEls.forEach(el => elements.push(el));
+  savedEls.forEach(el => {
+    el.x = Math.round(el.x || 0);
+    el.y = Math.round(el.y || 0);
+    el.w = Math.round(el.w || 100);
+    el.h = Math.round(el.h || 100);
+    elements.push(el);
+  });
   elements.forEach(el => renderElement(el));
   // Advance elementCounter past the highest loaded ID to prevent collisions
   savedEls.forEach(el => {
