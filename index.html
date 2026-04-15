@@ -829,9 +829,75 @@
     width: 100%; min-width: 0;
   }
   .cat-rename-input:focus { box-shadow: 0 0 0 2px rgba(26,26,26,0.1); }
+
+  /* ── LOGIN SCREEN ── */
+  #loginScreen {
+    position: fixed; inset: 0; z-index: 99999;
+    background: var(--cream);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+  }
+  #loginScreen.fade-out { opacity: 0; pointer-events: none; }
+  #loginCard {
+    width: 320px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0;
+  }
+  #loginCard .login-logo {
+    font-family: 'Cormorant', serif;
+    font-size: 22px; font-weight: 400;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink); margin-bottom: 6px;
+  }
+  #loginCard .login-sub {
+    font-size: 9px; font-weight: 500; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--text-muted);
+    font-family: 'Outfit', sans-serif; margin-bottom: 40px;
+  }
+  #loginCard .login-divider {
+    width: 32px; height: 1px; background: var(--border-mid);
+    margin-bottom: 40px;
+  }
+  #loginPwInput {
+    width: 100%; padding: 11px 14px;
+    border: 1px solid var(--border-mid); border-radius: 4px;
+    background: #fff; color: var(--ink);
+    font-family: 'Outfit', sans-serif; font-size: 13px;
+    letter-spacing: 0.06em; outline: none;
+    transition: border-color 0.15s;
+    margin-bottom: 10px; text-align: center;
+  }
+  #loginPwInput:focus { border-color: var(--ink); }
+  #loginPwInput::placeholder { color: var(--text-muted); letter-spacing: 0.04em; }
+  #loginBtn {
+    width: 100%; padding: 11px;
+    background: var(--ink); color: #fff; border: none; border-radius: 4px;
+    font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: background 0.15s;
+  }
+  #loginBtn:hover { background: #333; }
+  #loginError {
+    margin-top: 12px; font-size: 11px; color: var(--rust);
+    font-family: 'Outfit', sans-serif; letter-spacing: 0.02em;
+    min-height: 16px; text-align: center;
+  }
 </style>
 </head>
 <body>
+
+<!-- ── LOGIN SCREEN ─────────────────────────────────────────── -->
+<div id="loginScreen">
+  <div id="loginCard">
+    <div class="login-logo">Photokitchen</div>
+    <div class="login-sub">Set Builder</div>
+    <div class="login-divider"></div>
+    <input id="loginPwInput" type="password" placeholder="Enter password" autocomplete="current-password">
+    <button id="loginBtn" onclick="attemptLogin()">Access</button>
+    <div id="loginError"></div>
+  </div>
+</div>
 
 <header>
   <div class="logo">Photokitchen <span>Set Builder</span></div>
@@ -3804,7 +3870,46 @@ async function init() {
   changeCanvasSize('1920x1080');
   showToast('Welcome to Photokitchen Set Builder 🍽');
 }
-init();
+// ─── AUTH ────────────────────────────────────────────────────────
+const _PW_HASH = 'cd0e4c12a7b5439fa0069006a57e0d1f2d4ec41f5a1373d3a3f9b839051b03c5';
+const _AUTH_KEY = 'pk-auth';
+
+async function _sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function _grantAccess() {
+  const screen = document.getElementById('loginScreen');
+  screen.classList.add('fade-out');
+  screen.addEventListener('transitionend', () => screen.remove(), { once: true });
+  init();
+}
+
+async function attemptLogin() {
+  const val = document.getElementById('loginPwInput').value;
+  const hash = await _sha256(val);
+  if (hash === _PW_HASH) {
+    localStorage.setItem(_AUTH_KEY, _PW_HASH);
+    _grantAccess();
+  } else {
+    const err = document.getElementById('loginError');
+    err.textContent = 'Incorrect password. Try again.';
+    document.getElementById('loginPwInput').value = '';
+    document.getElementById('loginPwInput').focus();
+    setTimeout(() => { err.textContent = ''; }, 3000);
+  }
+}
+
+// Allow submitting with Enter key
+document.getElementById('loginPwInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') attemptLogin();
+});
+
+// Check if this device is already authenticated
+if (localStorage.getItem(_AUTH_KEY) === _PW_HASH) {
+  _grantAccess();
+}
 </script>
 </body>
 </html>
