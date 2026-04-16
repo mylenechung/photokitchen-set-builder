@@ -902,6 +902,38 @@
     font-family: 'Outfit', sans-serif; letter-spacing: 0.02em;
     min-height: 16px; text-align: center;
   }
+
+  /* SHAPE PROPERTIES */
+  .shape-prop-section {
+    padding: 8px 0 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .shape-prop-label {
+    font-size: 10px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .stroke-pill-group { display: flex; gap: 4px; }
+  .stroke-pill {
+    flex: 1; padding: 4px 0;
+    border: 1px solid var(--border-mid); border-radius: 4px;
+    background: transparent; font-size: 10px; font-family: 'Outfit', sans-serif;
+    cursor: pointer; color: var(--ink-soft); text-align: center;
+    transition: all 0.12s; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .stroke-pill:hover { border-color: var(--ink); color: var(--ink); background: var(--warm); }
+  .stroke-pill.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .shape-color-row { display: flex; align-items: center; gap: 8px; }
+  .shape-no-fill {
+    font-size: 10px; color: var(--ink-soft); display: flex;
+    align-items: center; gap: 4px; cursor: pointer; white-space: nowrap;
+    user-select: none;
+  }
+  .shape-no-fill input { cursor: pointer; }
+  .shape-color-swatch {
+    width: 32px; height: 24px; padding: 0; border: 1px solid var(--border-mid);
+    border-radius: 3px; cursor: pointer; background: none;
+  }
 </style>
 </head>
 <body>
@@ -996,6 +1028,12 @@
       <div class="tool-group">
         <button class="tool-btn active" id="toolSelect" onclick="setTool('select')" title="Select (V)">↖</button>
         <button class="tool-btn" id="toolText" onclick="addTextElement()" title="Add Text">T</button>
+      </div>
+      <div class="tool-divider"></div>
+      <div class="tool-group">
+        <button class="tool-btn" onclick="addShapeToCanvas('rect')" title="Add Rectangle">▭</button>
+        <button class="tool-btn" onclick="addShapeToCanvas('circle')" title="Add Circle">○</button>
+        <button class="tool-btn" onclick="addShapeToCanvas('line')" title="Add Line" style="font-size:16px;letter-spacing:-0.03em;">—</button>
       </div>
       <div class="tool-divider"></div>
       <div class="tool-group">
@@ -1912,6 +1950,86 @@ function addTextElement() {
   document.getElementById('emptyState').style.display = 'none';
 }
 
+function addShapeToCanvas(shapeType) {
+  saveHistory();
+  const canvas = document.getElementById('canvas');
+  const id = 'el-' + (++elementCounter);
+  const cfg = {
+    rect:   { w: 200, h: 150, name: 'Rectangle' },
+    circle: { w: 150, h: 150, name: 'Circle' },
+    line:   { w: 200, h: 4,   name: 'Line' },
+  }[shapeType] || { w: 150, h: 150, name: 'Shape' };
+  const el = {
+    id, name: cfg.name, isShape: true, shapeType,
+    x: Math.round(100 + Math.random() * Math.max(1, canvas.clientWidth  - cfg.w - 100)),
+    y: Math.round(80  + Math.random() * Math.max(1, canvas.clientHeight - cfg.h - 80)),
+    w: cfg.w, h: cfg.h,
+    opacity: 1, flipH: false, flipV: false, rotation: 0, zIndex: elements.length + 1,
+    fillColor: '#d4a96a', noFill: false,
+    strokeColor: '#1a1a1a', strokeWidth: 2,
+  };
+  elements.push(el);
+  renderElement(el);
+  selectElement(id);
+  updateLayers();
+  document.getElementById('emptyState').style.display = 'none';
+}
+
+function _makeShapeSvg(el) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;';
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  _refreshShapeSvg(el, svg);
+  return svg;
+}
+
+function _refreshShapeSvg(el, svg) {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const fill   = el.noFill ? 'none' : (el.fillColor || '#d4a96a');
+  const stroke = el.strokeColor || '#1a1a1a';
+  const sw     = el.strokeWidth ?? 2;
+  const ns  = 'http://www.w3.org/2000/svg';
+  const vfx = 'non-scaling-stroke';
+
+  if (el.shapeType === 'rect') {
+    const r = document.createElementNS(ns, 'rect');
+    r.setAttribute('x', '0'); r.setAttribute('y', '0');
+    r.setAttribute('width', '100'); r.setAttribute('height', '100');
+    r.setAttribute('fill', fill);
+    r.setAttribute('stroke', stroke);
+    r.setAttribute('stroke-width', sw);
+    r.setAttribute('vector-effect', vfx);
+    svg.appendChild(r);
+  } else if (el.shapeType === 'circle') {
+    const e = document.createElementNS(ns, 'ellipse');
+    e.setAttribute('cx', '50'); e.setAttribute('cy', '50');
+    e.setAttribute('rx', '50'); e.setAttribute('ry', '50');
+    e.setAttribute('fill', fill);
+    e.setAttribute('stroke', stroke);
+    e.setAttribute('stroke-width', sw);
+    e.setAttribute('vector-effect', vfx);
+    svg.appendChild(e);
+  } else if (el.shapeType === 'line') {
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('x1', '0'); l.setAttribute('y1', '50');
+    l.setAttribute('x2', '100'); l.setAttribute('y2', '50');
+    l.setAttribute('stroke', stroke);
+    l.setAttribute('stroke-width', sw);
+    l.setAttribute('vector-effect', vfx);
+    l.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(l);
+  }
+}
+
+function applyShapeProps(el) {
+  const dom = document.getElementById(el.id);
+  if (!dom) return;
+  const svg = dom.querySelector('svg');
+  if (!svg) return;
+  _refreshShapeSvg(el, svg);
+}
+
 function renderElement(el) {
   const canvas = document.getElementById('canvas');
   const existing = document.getElementById(el.id);
@@ -1986,6 +2104,9 @@ function renderElement(el) {
       e.stopPropagation();
       enterCropMode(el, div, img, applyImgTransform);
     });
+  } else if (el.isShape) {
+    const svg = _makeShapeSvg(el);
+    div.appendChild(svg);
   } else if (el.colorBg) {
     div.style.background = el.colorBg;
   }
@@ -2726,7 +2847,31 @@ function updatePropertiesPanel() {
   }
   const el = elements.find(e => e.id === selectedId);
   if (!el) return;
-  panel.innerHTML = `
+  const shapePropHtml = el.isShape ? `
+    <div class="shape-prop-section">
+      <div class="shape-prop-label">Fill</div>
+      <div class="shape-color-row" style="margin-bottom:4px;">
+        <input type="color" class="shape-color-swatch" value="${el.noFill ? '#d4a96a' : (el.fillColor || '#d4a96a')}"
+          ${el.noFill ? 'disabled' : ''} oninput="updateProp('fillColor',this.value)">
+        <label class="shape-no-fill">
+          <input type="checkbox" ${el.noFill ? 'checked' : ''} onchange="updateProp('noFill',this.checked)"> No fill
+        </label>
+      </div>
+      <div class="shape-prop-label" style="margin-top:8px;">Stroke Color</div>
+      <div class="shape-color-row" style="margin-bottom:4px;">
+        <input type="color" class="shape-color-swatch" value="${el.strokeColor || '#1a1a1a'}"
+          oninput="updateProp('strokeColor',this.value)">
+      </div>
+      <div class="shape-prop-label" style="margin-top:8px;">Stroke Weight</div>
+      <div class="stroke-pill-group" style="margin-bottom:2px;">
+        <button class="stroke-pill ${(el.strokeWidth ?? 2) <= 2 ? 'active' : ''}" onclick="updateProp('strokeWidth',2)">Thin</button>
+        <button class="stroke-pill ${(el.strokeWidth ?? 2) > 2 && (el.strokeWidth ?? 2) <= 5 ? 'active' : ''}" onclick="updateProp('strokeWidth',5)">Mid</button>
+        <button class="stroke-pill ${(el.strokeWidth ?? 2) > 5 ? 'active' : ''}" onclick="updateProp('strokeWidth',10)">Thick</button>
+      </div>
+    </div>
+  ` : '';
+
+  panel.innerHTML = shapePropHtml + `
     <div class="prop-row">
       <span class="prop-label">X</span>
       <input class="prop-input" type="number" value="${Math.round(el.x)}" onchange="updateProp('x',+this.value)">
@@ -2777,6 +2922,10 @@ function updateProp(prop, val) {
   else if (prop === 'opacity') dom.style.opacity = val;
   else if (prop === 'rotation') applyTransform(el);
   else if (prop === 'blendMode') dom.style.mixBlendMode = val || 'normal';
+  else if (prop === 'fillColor')   { el.fillColor = val;   applyShapeProps(el); }
+  else if (prop === 'noFill')      { el.noFill = val;      applyShapeProps(el); updatePropertiesPanel(); }
+  else if (prop === 'strokeColor') { el.strokeColor = val; applyShapeProps(el); }
+  else if (prop === 'strokeWidth') { el.strokeWidth = val; applyShapeProps(el); updatePropertiesPanel(); }
 }
 
 // ─── LAYERS LIST ─────────────────────────────────────────────────
@@ -2808,6 +2957,9 @@ function updateLayers() {
     thumb.className = 'layer-thumb';
     if (el.imgSrc) {
       thumb.innerHTML = `<img src="${el.imgSrc}">`;
+    } else if (el.isShape) {
+      const icon = el.shapeType === 'rect' ? '▭' : el.shapeType === 'circle' ? '○' : '—';
+      thumb.innerHTML = `<span style="font-size:16px;">${icon}</span>`;
     } else {
       thumb.innerHTML = `<span style="font-size:18px;">${el.emoji || (el.colorBg ? '🎨' : 'T')}</span>`;
     }
@@ -3202,6 +3354,28 @@ async function exportCanvas() {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillText(el.text || '', -ew / 2, -eh / 2);
+
+      } else if (el.isShape) {
+        const shapeFill   = el.noFill ? null : (el.fillColor || '#d4a96a');
+        const shapeStroke = el.strokeColor || '#1a1a1a';
+        const shapeSW     = (el.strokeWidth ?? 2) * toReal;
+        ctx.strokeStyle = shapeStroke;
+        ctx.lineWidth   = Math.max(0.5, shapeSW);
+        if (el.shapeType === 'rect') {
+          if (shapeFill) { ctx.fillStyle = shapeFill; ctx.fillRect(-ew/2, -eh/2, ew, eh); }
+          if (shapeSW > 0) ctx.strokeRect(-ew/2, -eh/2, ew, eh);
+        } else if (el.shapeType === 'circle') {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, ew/2, eh/2, 0, 0, Math.PI * 2);
+          if (shapeFill) { ctx.fillStyle = shapeFill; ctx.fill(); }
+          if (shapeSW > 0) ctx.stroke();
+        } else if (el.shapeType === 'line') {
+          ctx.beginPath();
+          ctx.lineCap = 'round';
+          ctx.moveTo(-ew/2, 0);
+          ctx.lineTo(ew/2, 0);
+          ctx.stroke();
+        }
       }
 
       ctx.restore();
@@ -3542,6 +3716,28 @@ async function generateThumbnail() {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(el.text || '', -ew / 2, -eh / 2);
+
+    } else if (el.isShape) {
+      const shapeFill   = el.noFill ? null : (el.fillColor || '#d4a96a');
+      const shapeStroke = el.strokeColor || '#1a1a1a';
+      const shapeSW     = Math.max(0.5, (el.strokeWidth ?? 2) * toThumb);
+      ctx.strokeStyle = shapeStroke;
+      ctx.lineWidth   = shapeSW;
+      if (el.shapeType === 'rect') {
+        if (shapeFill) { ctx.fillStyle = shapeFill; ctx.fillRect(-ew/2, -eh/2, ew, eh); }
+        if (shapeSW > 0) ctx.strokeRect(-ew/2, -eh/2, ew, eh);
+      } else if (el.shapeType === 'circle') {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, ew/2, eh/2, 0, 0, Math.PI * 2);
+        if (shapeFill) { ctx.fillStyle = shapeFill; ctx.fill(); }
+        if (shapeSW > 0) ctx.stroke();
+      } else if (el.shapeType === 'line') {
+        ctx.beginPath();
+        ctx.lineCap = 'round';
+        ctx.moveTo(-ew/2, 0);
+        ctx.lineTo(ew/2, 0);
+        ctx.stroke();
+      }
     }
 
     ctx.restore();
