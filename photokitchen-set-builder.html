@@ -1986,8 +1986,8 @@ function _makeShapeSvg(el) {
 
 function _refreshShapeSvg(el, svg) {
   while (svg.firstChild) svg.removeChild(svg.firstChild);
-  const fill   = el.noFill ? 'none' : (el.fillColor || '#d4a96a');
-  const stroke = el.strokeColor || '#1a1a1a';
+  const fill   = el.noFill   ? 'none' : (el.fillColor   || '#d4a96a');
+  const stroke = el.noStroke ? 'none' : (el.strokeColor || '#1a1a1a');
   const sw     = el.strokeWidth ?? 2;
   const ns  = 'http://www.w3.org/2000/svg';
   const vfx = 'non-scaling-stroke';
@@ -2857,10 +2857,13 @@ function updatePropertiesPanel() {
           <input type="checkbox" ${el.noFill ? 'checked' : ''} onchange="updateProp('noFill',this.checked)"> No fill
         </label>
       </div>
-      <div class="shape-prop-label" style="margin-top:8px;">Stroke Color</div>
+      <div class="shape-prop-label" style="margin-top:8px;">Stroke</div>
       <div class="shape-color-row" style="margin-bottom:4px;">
         <input type="color" class="shape-color-swatch" value="${el.strokeColor || '#1a1a1a'}"
-          oninput="updateProp('strokeColor',this.value)">
+          ${el.noStroke ? 'disabled' : ''} oninput="updateProp('strokeColor',this.value)">
+        <label class="shape-no-fill">
+          <input type="checkbox" ${el.noStroke ? 'checked' : ''} onchange="updateProp('noStroke',this.checked)"> No stroke
+        </label>
       </div>
       <div class="shape-prop-label" style="margin-top:8px;">Stroke Weight</div>
       <div class="stroke-pill-group" style="margin-bottom:2px;">
@@ -2925,6 +2928,7 @@ function updateProp(prop, val) {
   else if (prop === 'fillColor')   { el.fillColor = val;   applyShapeProps(el); }
   else if (prop === 'noFill')      { el.noFill = val;      applyShapeProps(el); updatePropertiesPanel(); }
   else if (prop === 'strokeColor') { el.strokeColor = val; applyShapeProps(el); }
+  else if (prop === 'noStroke')    { el.noStroke = val;    applyShapeProps(el); updatePropertiesPanel(); }
   else if (prop === 'strokeWidth') { el.strokeWidth = val; applyShapeProps(el); updatePropertiesPanel(); }
 }
 
@@ -3356,25 +3360,26 @@ async function exportCanvas() {
         ctx.fillText(el.text || '', -ew / 2, -eh / 2);
 
       } else if (el.isShape) {
-        const shapeFill   = el.noFill ? null : (el.fillColor || '#d4a96a');
-        const shapeStroke = el.strokeColor || '#1a1a1a';
+        const shapeFill   = el.noFill   ? null : (el.fillColor   || '#d4a96a');
+        const shapeStroke = el.noStroke ? null : (el.strokeColor || '#1a1a1a');
         const shapeSW     = (el.strokeWidth ?? 2) * toReal;
-        ctx.strokeStyle = shapeStroke;
-        ctx.lineWidth   = Math.max(0.5, shapeSW);
+        if (shapeStroke) { ctx.strokeStyle = shapeStroke; ctx.lineWidth = Math.max(0.5, shapeSW); }
         if (el.shapeType === 'rect') {
           if (shapeFill) { ctx.fillStyle = shapeFill; ctx.fillRect(-ew/2, -eh/2, ew, eh); }
-          if (shapeSW > 0) ctx.strokeRect(-ew/2, -eh/2, ew, eh);
+          if (shapeStroke) ctx.strokeRect(-ew/2, -eh/2, ew, eh);
         } else if (el.shapeType === 'circle') {
           ctx.beginPath();
           ctx.ellipse(0, 0, ew/2, eh/2, 0, 0, Math.PI * 2);
           if (shapeFill) { ctx.fillStyle = shapeFill; ctx.fill(); }
-          if (shapeSW > 0) ctx.stroke();
+          if (shapeStroke) ctx.stroke();
         } else if (el.shapeType === 'line') {
-          ctx.beginPath();
-          ctx.lineCap = 'round';
-          ctx.moveTo(-ew/2, 0);
-          ctx.lineTo(ew/2, 0);
-          ctx.stroke();
+          if (shapeStroke) {
+            ctx.beginPath();
+            ctx.lineCap = 'round';
+            ctx.moveTo(-ew/2, 0);
+            ctx.lineTo(ew/2, 0);
+            ctx.stroke();
+          }
         }
       }
 
@@ -3718,25 +3723,26 @@ async function generateThumbnail() {
       ctx.fillText(el.text || '', -ew / 2, -eh / 2);
 
     } else if (el.isShape) {
-      const shapeFill   = el.noFill ? null : (el.fillColor || '#d4a96a');
-      const shapeStroke = el.strokeColor || '#1a1a1a';
+      const shapeFill   = el.noFill   ? null : (el.fillColor   || '#d4a96a');
+      const shapeStroke = el.noStroke ? null : (el.strokeColor || '#1a1a1a');
       const shapeSW     = Math.max(0.5, (el.strokeWidth ?? 2) * toThumb);
-      ctx.strokeStyle = shapeStroke;
-      ctx.lineWidth   = shapeSW;
+      if (shapeStroke) { ctx.strokeStyle = shapeStroke; ctx.lineWidth = shapeSW; }
       if (el.shapeType === 'rect') {
         if (shapeFill) { ctx.fillStyle = shapeFill; ctx.fillRect(-ew/2, -eh/2, ew, eh); }
-        if (shapeSW > 0) ctx.strokeRect(-ew/2, -eh/2, ew, eh);
+        if (shapeStroke) ctx.strokeRect(-ew/2, -eh/2, ew, eh);
       } else if (el.shapeType === 'circle') {
         ctx.beginPath();
         ctx.ellipse(0, 0, ew/2, eh/2, 0, 0, Math.PI * 2);
         if (shapeFill) { ctx.fillStyle = shapeFill; ctx.fill(); }
-        if (shapeSW > 0) ctx.stroke();
+        if (shapeStroke) ctx.stroke();
       } else if (el.shapeType === 'line') {
-        ctx.beginPath();
-        ctx.lineCap = 'round';
-        ctx.moveTo(-ew/2, 0);
-        ctx.lineTo(ew/2, 0);
-        ctx.stroke();
+        if (shapeStroke) {
+          ctx.beginPath();
+          ctx.lineCap = 'round';
+          ctx.moveTo(-ew/2, 0);
+          ctx.lineTo(ew/2, 0);
+          ctx.stroke();
+        }
       }
     }
 
