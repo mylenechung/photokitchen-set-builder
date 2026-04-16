@@ -4049,17 +4049,40 @@ function _hexColor(color) {
 }
 
 async function _urlToBase64(url) {
+  // Route through the Worker proxy to guarantee fresh CORS headers.
+  // Direct fetches to the same Worker URL can fail when the browser serves
+  // a cached no-CORS response from an earlier <img src="..."> load.
+  const proxyUrl = `${CONFIG.workerUrl}/proxy?url=${encodeURIComponent(url)}`;
   try {
-    const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) return null;
-    const blob = await res.blob();
+    const res = await fetch(proxyUrl, { headers: { 'X-API-Key': CONFIG.apiKey } });
+    if (!res.ok) {
+      console.warn(`[Backup] Image proxy ${res.status} for: ${url}`);
+      return null;
+    }
+    let blob = await res.blob();
+    // Safety net: if R2 returned a wrong MIME type (e.g. text/plain), fix it from the URL extension
+    if (!blob.type.startsWith('image/')) {
+      const ext = url.split('.').pop().replace(/[?#].*/, '').toLowerCase();
+      const mimeByExt = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml' };
+      const fixed = mimeByExt[ext];
+      if (fixed) {
+        console.log(`[Backup] Fixing MIME type ${blob.type} → ${fixed} for: ${url}`);
+        blob = blob.slice(0, blob.size, fixed);
+      }
+    }
     return new Promise(resolve => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
-      reader.onerror  = () => resolve(null);
+      reader.onerror = () => {
+        console.warn('[Backup] FileReader failed for:', url);
+        resolve(null);
+      };
       reader.readAsDataURL(blob);
     });
-  } catch { return null; }
+  } catch (e) {
+    console.warn('[Backup] Image fetch error:', e.message, url);
+    return null;
+  }
 }
 
 async function downloadBackup() {
@@ -4112,7 +4135,11 @@ async function downloadBackup() {
           if (b64) {
             try {
               slide.addImage({ data: b64, x: ex, y: ey, w: ew, h: eh, rotate: rot });
-            } catch(imgErr) { console.warn('PPTX: could not embed image', el.name, imgErr); }
+            } catch(imgErr) {
+              console.warn('[Backup] addImage failed for:', el.name, imgErr.message);
+            }
+          } else {
+            console.warn('[Backup] Skipping image (proxy returned null):', el.name, el.imgSrc);
           }
 
         } else if (el.colorBg) {

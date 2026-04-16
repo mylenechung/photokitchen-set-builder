@@ -2,12 +2,13 @@
  * Photokitchen Set Builder — Cloudflare Worker
  *
  * Routes:
- *   PUT  /asset?key=<r2-key>   Upload binary asset to R2
- *   GET  /asset?key=<r2-key>   Serve asset from R2
- *   DELETE /asset?key=<r2-key> Delete asset from R2
- *   GET  /assets/list          List all objects under assets/ prefix
- *   GET  /kv?key=<name>        Read JSON blob from R2 (returns { value: string })
- *   PUT  /kv?key=<name>        Write JSON blob to R2 (body = raw string)
+ *   PUT  /asset?key=<r2-key>      Upload binary asset to R2
+ *   GET  /asset?key=<r2-key>      Serve asset from R2
+ *   DELETE /asset?key=<r2-key>   Delete asset from R2
+ *   GET  /assets/list             List all objects under assets/ prefix
+ *   GET  /kv?key=<name>           Read JSON blob from R2 (returns { value: string })
+ *   PUT  /kv?key=<name>           Write JSON blob to R2 (body = raw string)
+ *   GET  /proxy?url=<asset-url>   Proxy an R2 asset with fresh CORS headers (for PPTX backup)
  *
  * Auth: X-API-Key header must match API_KEY secret (set via: wrangler secret put API_KEY)
  * CORS: restricted to https://mylenechung.github.io and localhost for dev
@@ -56,8 +57,9 @@ export default {
       return respond(null, 204, {}, origin);
     }
 
-    // Auth — skip for GET /asset (served assets are readable without a key)
-    const isPublicRead = request.method === 'GET' && url.pathname === '/asset';
+    // Auth — skip for public read routes (asset serving and proxy)
+    const isPublicRead = request.method === 'GET' &&
+      (url.pathname === '/asset' || url.pathname === '/proxy');
     if (!isPublicRead) {
       const key = request.headers.get('X-API-Key');
       if (!key || key !== env.API_KEY) {
@@ -132,6 +134,37 @@ export default {
         httpMetadata: { contentType: 'application/json' },
       });
       return respond('OK', 200, {}, origin);
+    }
+
+    // ── GET /proxy ────────────────────────────────────────────────
+    // Fetches an R2 asset by key (extracted from the asset URL) and returns it
+    // with fresh CORS headers + Cache-Control: no-store.
+    // This bypasses browser CORS-cache poisoning that occurs when the same URL
+    // is first loaded via <img> (no-CORS) and then re-fetched by JS (needs CORS).
+    // Content-Type is derived from the file extension (R2 metadata is unreliable).
+    if (request.method === 'GET' && url.pathname === '/proxy') {
+      const assetUrl = url.searchParams.get('url');
+      if (!assetUrl) return respond('Missing url', 400, {}, origin);
+      try {
+        const parsed = new URL(assetUrl);
+        const key = parsed.searchParams.get('key');
+        if (!key) return respond('Missing key in url', 400, {}, origin);
+        const obj = await env.BUCKET.get(key);
+        if (!obj) return notFound(origin);
+        // Derive content type from file extension — more reliable than R2 metadata
+        const ext = key.split('.').pop().toLowerCase();
+        const mimeByExt = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml' };
+        const contentType = mimeByExt[ext] || obj.httpMetadata?.contentType || 'application/octet-stream';
+        return new Response(obj.body, {
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'no-store',
+            ...corsHeaders(origin),
+          },
+        });
+      } catch (e) {
+        return respond('Proxy error: ' + e.message, 500, {}, origin);
+      }
     }
 
     return notFound(origin);
