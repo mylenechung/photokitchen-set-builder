@@ -20,7 +20,7 @@
   })();
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs/dist/pptxgen.bundled.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs/dist/pptxgen.bundle.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -4128,13 +4128,13 @@ async function downloadBackup() {
           const fillOpt = el.noFill   ? { type: 'none' } : { color: _hexColor(el.fillColor || '#d4a96a') };
           const lineOpt = el.noStroke ? { type: 'none' } : { color: _hexColor(el.strokeColor || '#1a1a1a'), width: el.strokeWidth ?? 2 };
           if (el.shapeType === 'rect') {
-            slide.addShape(pptx.ShapeType.RECT, { x: ex, y: ey, w: ew, h: eh, rotate: rot, fill: fillOpt, line: lineOpt });
+            slide.addShape('rect', { x: ex, y: ey, w: ew, h: eh, rotate: rot, fill: fillOpt, line: lineOpt });
           } else if (el.shapeType === 'circle') {
-            slide.addShape(pptx.ShapeType.ELLIPSE, { x: ex, y: ey, w: ew, h: eh, rotate: rot, fill: fillOpt, line: lineOpt });
+            slide.addShape('ellipse', { x: ex, y: ey, w: ew, h: eh, rotate: rot, fill: fillOpt, line: lineOpt });
           } else if (el.shapeType === 'line') {
             if (!el.noStroke) {
-              slide.addShape(pptx.ShapeType.LINE, {
-                x: ex, y: ey + eh / 2, w: ew, h: 0, rotate: rot,
+              slide.addShape('line', {
+                x: ex, y: ey + Math.max(eh / 2, 0.01), w: Math.max(ew, 0.01), h: 0, rotate: rot,
                 line: lineOpt,
               });
             }
