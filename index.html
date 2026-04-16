@@ -2508,6 +2508,42 @@ document.querySelectorAll('#multiSelectBox .ms-handle').forEach(handle => {
   });
 });
 
+// Drag the group box itself (not a resize handle) to move all selected elements
+document.getElementById('multiSelectBox').addEventListener('mousedown', e => {
+  if (e.target.classList.contains('ms-handle')) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const dragging = elements.filter(el => selectedIds.includes(el.id) && !el.locked);
+  if (!dragging.length) return;
+
+  const origPositions = dragging.map(el => ({ id: el.id, x: el.x, y: el.y }));
+  const startX = e.clientX, startY = e.clientY;
+  let moved = false;
+
+  const onMove = ev => {
+    const dx = (ev.clientX - startX) / zoomLevel;
+    const dy = (ev.clientY - startY) / zoomLevel;
+    moved = true;
+    dragging.forEach((el, i) => {
+      el.x = Math.round(origPositions[i].x + dx);
+      el.y = Math.round(origPositions[i].y + dy);
+      const dom = document.getElementById(el.id);
+      if (dom) { dom.style.left = el.x + 'px'; dom.style.top = el.y + 'px'; }
+    });
+    _updateGroupBox();
+  };
+
+  const onUp = () => {
+    if (moved) saveHistory();
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
+
 function startGroupResize(e, pos) {
   const sel = elements.filter(el => selectedIds.includes(el.id));
   if (!sel.length) return;
