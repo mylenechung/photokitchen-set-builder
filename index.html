@@ -20,6 +20,7 @@
   })();
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs/dist/pptxgen.bundled.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -903,6 +904,37 @@
     min-height: 16px; text-align: center;
   }
 
+  /* BACKUP MODE */
+  .backup-mode-btn { margin-top: 6px; border-style: solid !important; color: var(--ink-soft) !important; }
+  .backup-selection-bar {
+    position: sticky; top: 0; z-index: 10;
+    padding: 9px 14px; background: var(--cream);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+  }
+  .backup-bar-links { display: flex; gap: 10px; }
+  .backup-bar-link {
+    color: var(--ink-soft); cursor: pointer; background: none; border: none;
+    font-family: 'Outfit', sans-serif; font-size: 10px; padding: 0;
+    text-decoration: underline; text-underline-offset: 2px; letter-spacing: 0.02em;
+    transition: color 0.1s;
+  }
+  .backup-bar-link:hover { color: var(--ink); }
+  .backup-bar-link.danger:hover { color: var(--rust); }
+  .backup-bar-count { flex: 1; color: var(--text-muted); font-size: 10px; letter-spacing: 0.02em; }
+  .set-card.backup-mode { cursor: pointer; }
+  .set-card.backup-mode .set-actions { display: none !important; }
+  .set-card.backup-selected { border-color: var(--ink) !important; background: rgba(26,26,26,0.04) !important; }
+  .backup-check {
+    position: absolute; top: 7px; left: 7px; width: 16px; height: 16px;
+    border: 1.5px solid var(--border-mid); border-radius: 3px;
+    background: #fff; display: flex; align-items: center; justify-content: center;
+    pointer-events: none; font-size: 10px; color: #fff;
+    transition: all 0.1s; z-index: 2;
+  }
+  .set-card.backup-selected .backup-check { background: var(--ink); border-color: var(--ink); }
+  .backup-mode-active .folder-header { cursor: default; }
+
   /* SHAPE PROPERTIES */
   .shape-prop-section {
     padding: 8px 0 4px;
@@ -1126,6 +1158,7 @@
     </div>
     <div class="gallery-toolbar">
       <button class="new-folder-btn" onclick="promptNewFolder()">＋ New Brand Folder</button>
+      <button class="new-folder-btn backup-mode-btn" id="backupSetsBtn" onclick="enterBackupMode()">⬇ Back-up Sets</button>
     </div>
     <div class="gallery-body" id="galleryBody">
       <div class="gallery-empty">
@@ -1176,6 +1209,19 @@
     <div class="save-dialog-actions">
       <button class="btn btn-ghost" onclick="closeSaveDialog()">Cancel</button>
       <button class="btn btn-gold" onclick="confirmSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- BACKUP DONE MODAL -->
+<div class="save-overlay" id="backupDoneOverlay">
+  <div class="save-dialog" style="max-width:360px;">
+    <h3 style="margin-bottom:12px;">Back-up Complete</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 4px;line-height:1.6;letter-spacing:0.01em;">Remove backed-up sets from gallery?</p>
+    <p style="font-size:11px;color:var(--text-muted);margin:0 0 24px;line-height:1.5;">Removing will free up storage in your R2 bucket.</p>
+    <div class="save-dialog-actions">
+      <button class="btn btn-ghost" onclick="_backupDoneKeep()">No, keep them</button>
+      <button class="btn btn-primary" onclick="_backupDoneRemove()">Yes, remove them</button>
     </div>
   </div>
 </div>
@@ -3514,6 +3560,9 @@ function canvasSnapshot() {
 // ── Save dialog ────────────────────────────────────────────────
 let _galleryCache = null; // avoid redundant storage reads within a session
 let currentLoadedSet = null; // { id, name } of the set loaded from gallery, or null
+let _backupMode = false;
+let _backupSelected = new Set(); // set IDs currently checked
+let _backupPendingSets = []; // sets awaiting post-download remove-prompt
 
 async function openSaveDialog() {
   if (currentLoadedSet) {
@@ -3782,17 +3831,70 @@ function renderGallery() {
   const body = document.getElementById('galleryBody');
   body.innerHTML = '';
 
+  // ── Backup mode selection toolbar ──────────────────────────────
+  if (_backupMode) {
+    const allSets = [];
+    _galleryCache.folders.forEach(f => f.sets.forEach(s => allSets.push(s.id)));
+
+    const bar = document.createElement('div');
+    bar.className = 'backup-selection-bar';
+    bar.id = 'backupBar';
+
+    const links = document.createElement('div');
+    links.className = 'backup-bar-links';
+
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.className = 'backup-bar-link';
+    selectAllBtn.textContent = 'Select All';
+    selectAllBtn.onclick = () => { allSets.forEach(id => _backupSelected.add(id)); renderGallery(); };
+
+    const deselectAllBtn = document.createElement('button');
+    deselectAllBtn.className = 'backup-bar-link';
+    deselectAllBtn.textContent = 'Deselect All';
+    deselectAllBtn.onclick = () => { _backupSelected.clear(); renderGallery(); };
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'backup-bar-link danger';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.onclick = exitBackupMode;
+
+    links.appendChild(selectAllBtn);
+    links.appendChild(deselectAllBtn);
+    links.appendChild(cancelBtn);
+
+    const count = document.createElement('span');
+    count.className = 'backup-bar-count';
+    count.textContent = `${_backupSelected.size} set${_backupSelected.size !== 1 ? 's' : ''} selected`;
+
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'btn btn-primary';
+    dlBtn.id = 'backupDownloadBtn';
+    dlBtn.style.cssText = 'font-size:10px;padding:5px 12px;';
+    dlBtn.disabled = _backupSelected.size === 0;
+    dlBtn.style.opacity = _backupSelected.size === 0 ? '0.4' : '1';
+    dlBtn.textContent = _backupSelected.size > 0
+      ? `Download Backup (${_backupSelected.size})`
+      : 'Download Backup';
+    dlBtn.onclick = downloadBackup;
+
+    bar.appendChild(links);
+    bar.appendChild(count);
+    bar.appendChild(dlBtn);
+    body.appendChild(bar);
+  }
+
   if (!_galleryCache.folders.length) {
-    body.innerHTML = `<div class="gallery-empty">
-      <div class="gallery-empty-icon">🗂</div>
-      No saved sets yet.<br>Create a brand folder,<br>then save your first set.
-    </div>`;
+    const empty = document.createElement('div');
+    empty.className = 'gallery-empty';
+    empty.innerHTML = '<div class="gallery-empty-icon">🗂</div>No saved sets yet.<br>Create a brand folder,<br>then save your first set.';
+    body.appendChild(empty);
     return;
   }
 
   _galleryCache.folders.forEach(folder => {
     const block = document.createElement('div');
-    block.className = 'folder-block open';
+    // In backup mode all folders are forced open
+    block.className = 'folder-block open' + (_backupMode ? ' backup-mode-active' : '');
     block.dataset.folderId = folder.id;
 
     // ── Folder header ──
@@ -3808,19 +3910,23 @@ function renderGallery() {
         <button class="folder-action-btn danger" title="Delete folder">🗑</button>
       </div>`;
 
-    hdr.addEventListener('click', e => {
-      if (e.target.closest('.folder-actions')) return;
-      block.classList.toggle('open');
-    });
-
-    hdr.querySelector('[title="Rename folder"]').addEventListener('click', e => {
-      e.stopPropagation();
-      inlineRenameFolder(folder, hdr.querySelector('.folder-name'));
-    });
-    hdr.querySelector('[title="Delete folder"]').addEventListener('click', e => {
-      e.stopPropagation();
-      confirmDeleteFolder(folder);
-    });
+    if (!_backupMode) {
+      hdr.addEventListener('click', e => {
+        if (e.target.closest('.folder-actions')) return;
+        block.classList.toggle('open');
+      });
+      hdr.querySelector('[title="Rename folder"]').addEventListener('click', e => {
+        e.stopPropagation();
+        inlineRenameFolder(folder, hdr.querySelector('.folder-name'));
+      });
+      hdr.querySelector('[title="Delete folder"]').addEventListener('click', e => {
+        e.stopPropagation();
+        confirmDeleteFolder(folder);
+      });
+    } else {
+      // Hide folder actions in backup mode
+      hdr.querySelector('.folder-actions').style.display = 'none';
+    }
 
     block.appendChild(hdr);
 
@@ -3837,8 +3943,20 @@ function renderGallery() {
 
     folder.sets.forEach(set => {
       const card = document.createElement('div');
-      card.className = 'set-card';
+      const isSelected = _backupSelected.has(set.id);
+      card.className = 'set-card' +
+        (_backupMode ? ' backup-mode' : '') +
+        (isSelected ? ' backup-selected' : '');
       card.dataset.setId = set.id;
+      card.style.position = 'relative';
+
+      // Checkbox overlay (backup mode only)
+      if (_backupMode) {
+        const chk = document.createElement('div');
+        chk.className = 'backup-check';
+        chk.innerHTML = isSelected ? '✓' : '';
+        card.appendChild(chk);
+      }
 
       const thumb = document.createElement('div');
       thumb.className = 'set-thumb';
@@ -3858,36 +3976,223 @@ function renderGallery() {
 
       const actions = document.createElement('div');
       actions.className = 'set-actions';
-      actions.style.opacity = '1'; // always visible in new layout
+      actions.style.opacity = '1';
       actions.innerHTML = `
         <button class="folder-action-btn" title="Load set" style="font-size:13px;">↩</button>
         <button class="folder-action-btn" title="Rename set">✏</button>
         <button class="folder-action-btn danger" title="Delete set">🗑</button>`;
 
-      actions.querySelector('[title="Load set"]').addEventListener('click', e => {
-        e.stopPropagation();
-        loadSet(set);
-      });
-      actions.querySelector('[title="Rename set"]').addEventListener('click', e => {
-        e.stopPropagation();
-        inlineRenameSet(set, info.querySelector('.set-name'));
-      });
-      actions.querySelector('[title="Delete set"]').addEventListener('click', e => {
-        e.stopPropagation();
-        confirmDeleteSet(folder, set);
-      });
+      if (!_backupMode) {
+        actions.querySelector('[title="Load set"]').addEventListener('click', e => {
+          e.stopPropagation(); loadSet(set);
+        });
+        actions.querySelector('[title="Rename set"]').addEventListener('click', e => {
+          e.stopPropagation(); inlineRenameSet(set, info.querySelector('.set-name'));
+        });
+        actions.querySelector('[title="Delete set"]').addEventListener('click', e => {
+          e.stopPropagation(); confirmDeleteSet(folder, set);
+        });
+      }
 
       footer.appendChild(info);
       footer.appendChild(actions);
       card.appendChild(thumb);
       card.appendChild(footer);
-      card.addEventListener('click', () => loadSet(set));
+
+      if (_backupMode) {
+        card.addEventListener('click', e => {
+          e.stopPropagation();
+          if (_backupSelected.has(set.id)) _backupSelected.delete(set.id);
+          else _backupSelected.add(set.id);
+          renderGallery();
+        });
+      } else {
+        card.addEventListener('click', () => loadSet(set));
+      }
+
       setsDiv.appendChild(card);
     });
 
     block.appendChild(setsDiv);
     body.appendChild(block);
   });
+}
+
+// ── Backup mode ────────────────────────────────────────────────
+function enterBackupMode() {
+  _backupMode = true;
+  _backupSelected.clear();
+  document.getElementById('backupSetsBtn').style.display = 'none';
+  renderGallery();
+}
+
+function exitBackupMode() {
+  _backupMode = false;
+  _backupSelected.clear();
+  _backupPendingSets = [];
+  document.getElementById('backupSetsBtn').style.display = '';
+  renderGallery();
+}
+
+// Convert any CSS color to a 6-char uppercase hex string for pptxgenjs
+function _hexColor(color) {
+  if (!color) return 'FFFFFF';
+  const m = color.match(/#([0-9a-fA-F]{3,6})/);
+  if (m) {
+    const h = m[1];
+    if (h.length === 3) return (h[0]+h[0]+h[1]+h[1]+h[2]+h[2]).toUpperCase();
+    return h.slice(0, 6).toUpperCase();
+  }
+  const rgb = color.match(/\d+/g);
+  if (rgb) return rgb.slice(0,3).map(n => parseInt(n).toString(16).padStart(2,'0')).join('').toUpperCase();
+  return 'CCCCCC';
+}
+
+async function _urlToBase64(url) {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror  = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch { return null; }
+}
+
+async function downloadBackup() {
+  if (_backupSelected.size === 0) return;
+
+  // Collect selected sets in gallery order (folder order, then set order within folder)
+  const selected = [];
+  _galleryCache.folders.forEach(folder => {
+    folder.sets.forEach(set => {
+      if (_backupSelected.has(set.id)) selected.push(set);
+    });
+  });
+
+  const dlBtn = document.getElementById('backupDownloadBtn');
+  if (dlBtn) { dlBtn.disabled = true; dlBtn.textContent = 'Generating…'; }
+
+  try {
+    const pptx = new PptxGenJS();
+
+    // Determine layout from the first set's aspect ratio
+    const firstCd = selected[0].canvasData;
+    const refW = parseFloat(firstCd.canvasW) || 960;
+    const refH = parseFloat(firstCd.canvasH) || 540;
+    const slideW = 10; // inches — standard width
+    const slideH = parseFloat((slideW * refH / refW).toFixed(4));
+    pptx.defineLayout({ name: 'PK_LAYOUT', width: slideW, height: slideH });
+    pptx.layout = 'PK_LAYOUT';
+
+    for (const set of selected) {
+      const cd = set.canvasData;
+      const displayW = parseFloat(cd.canvasW) || refW;
+      const displayH = parseFloat(cd.canvasH) || refH;
+      const scale = slideW / displayW; // display px → inches
+
+      const slide = pptx.addSlide();
+      slide.background = { color: _hexColor(cd.bgColor || '#ffffff') };
+
+      // Elements sorted by zIndex (lowest first = bottom layer)
+      const sorted = [...(cd.elements || [])].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+      for (const el of sorted) {
+        const ex = el.x * scale;
+        const ey = el.y * scale;
+        const ew = el.w * scale;
+        const eh = el.h * scale;
+        const rot = el.rotation || 0;
+
+        if (el.imgSrc) {
+          const b64 = await _urlToBase64(el.imgSrc);
+          if (b64) {
+            try {
+              slide.addImage({ data: b64, x: ex, y: ey, w: ew, h: eh, rotate: rot });
+            } catch(imgErr) { console.warn('PPTX: could not embed image', el.name, imgErr); }
+          }
+
+        } else if (el.colorBg) {
+          // Solid or gradient background — approximate with first color for gradient
+          const fillHex = _hexColor(el.colorBg);
+          slide.addShape(pptx.ShapeType.RECT, {
+            x: ex, y: ey, w: ew, h: eh, rotate: rot,
+            fill: { color: fillHex },
+            line: { type: 'none' },
+          });
+
+        } else if (el.isShape) {
+          const fillOpt = el.noFill   ? { type: 'none' } : { color: _hexColor(el.fillColor || '#d4a96a') };
+          const lineOpt = el.noStroke ? { type: 'none' } : { color: _hexColor(el.strokeColor || '#1a1a1a'), width: el.strokeWidth ?? 2 };
+          if (el.shapeType === 'rect') {
+            slide.addShape(pptx.ShapeType.RECT, { x: ex, y: ey, w: ew, h: eh, rotate: rot, fill: fillOpt, line: lineOpt });
+          } else if (el.shapeType === 'circle') {
+            slide.addShape(pptx.ShapeType.ELLIPSE, { x: ex, y: ey, w: ew, h: eh, rotate: rot, fill: fillOpt, line: lineOpt });
+          } else if (el.shapeType === 'line') {
+            if (!el.noStroke) {
+              slide.addShape(pptx.ShapeType.LINE, {
+                x: ex, y: ey + eh / 2, w: ew, h: 0, rotate: rot,
+                line: lineOpt,
+              });
+            }
+          }
+
+        } else if (el.emoji) {
+          const ptSize = Math.round(ew * 0.7 * 72); // inches → pt
+          slide.addText(el.emoji, {
+            x: ex, y: ey, w: ew, h: eh, rotate: rot,
+            fontSize: Math.min(Math.max(ptSize, 8), 400),
+            align: 'center', valign: 'middle',
+            fontFace: 'Segoe UI Emoji',
+          });
+
+        } else if (el.isText) {
+          const ptSize = Math.round((el.fontSize || 24) * scale * 72);
+          slide.addText(el.text || '', {
+            x: ex, y: ey, w: ew, h: eh, rotate: rot,
+            fontSize: Math.min(Math.max(ptSize, 6), 400),
+            color: _hexColor(el.color || '#1a1210'),
+            fontFace: 'Cormorant Garamond',
+            align: 'left', valign: 'top',
+          });
+        }
+      }
+    }
+
+    const year = new Date().getFullYear();
+    await pptx.writeFile({ fileName: `Photokitchen-Backup-${year}.pptx` });
+
+    // Store for post-download prompt
+    _backupPendingSets = selected;
+    document.getElementById('backupDoneOverlay').classList.add('open');
+
+  } catch (err) {
+    console.error('Backup error:', err);
+    showToast('Backup failed — check console for details');
+    if (dlBtn) {
+      dlBtn.disabled = false;
+      dlBtn.textContent = `Download Backup (${_backupSelected.size})`;
+    }
+  }
+}
+
+function _backupDoneKeep() {
+  document.getElementById('backupDoneOverlay').classList.remove('open');
+  exitBackupMode();
+}
+
+async function _backupDoneRemove() {
+  document.getElementById('backupDoneOverlay').classList.remove('open');
+  const removeIds = new Set(_backupPendingSets.map(s => s.id));
+  _galleryCache.folders.forEach(folder => {
+    folder.sets = folder.sets.filter(s => !removeIds.has(s.id));
+  });
+  await saveGalleryData(_galleryCache);
+  showToast(`${removeIds.size} set${removeIds.size !== 1 ? 's' : ''} removed from gallery`);
+  exitBackupMode();
 }
 
 // ── Load set onto canvas ───────────────────────────────────────
