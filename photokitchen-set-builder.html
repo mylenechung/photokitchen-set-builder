@@ -4048,41 +4048,43 @@ function _hexColor(color) {
   return 'CCCCCC';
 }
 
-async function _urlToBase64(url) {
-  // Route through the Worker proxy to guarantee fresh CORS headers.
-  // Direct fetches to the same Worker URL can fail when the browser serves
-  // a cached no-CORS response from an earlier <img src="..."> load.
-  const proxyUrl = `${CONFIG.workerUrl}/proxy?url=${encodeURIComponent(url)}`;
+async function _elementToBase64(el) {
+  // Draw this image element to an offscreen canvas and return a JPEG data URL.
+  // Uses the same loadImage() + crop logic as exportCanvas() — no fetch/CORS issues.
+  const ew = Math.max(Math.round(el.w), 1);
+  const eh = Math.max(Math.round(el.h), 1);
+  const oc  = document.createElement('canvas');
+  oc.width  = ew;
+  oc.height = eh;
+  const ctx = oc.getContext('2d');
   try {
-    const res = await fetch(proxyUrl, { headers: { 'X-API-Key': CONFIG.apiKey } });
-    if (!res.ok) {
-      console.warn(`[Backup] Image proxy ${res.status} for: ${url}`);
-      return null;
+    const img = await loadImage(el.imgSrc);
+    // Clip to canvas bounds (mirrors exportCanvas clip)
+    ctx.beginPath();
+    ctx.rect(0, 0, ew, eh);
+    ctx.clip();
+    const hasCrop = el._imgOXRatio != null;
+    if (hasCrop) {
+      // Crop offsets are ratios of the element's display size
+      const ox = el._imgOXRatio * ew;
+      const oy = el._imgOYRatio * eh;
+      const rw = el._imgWRatio  * ew;
+      const rh = el._imgHRatio  * eh;
+      ctx.drawImage(img, ox, oy, rw, rh);
+    } else {
+      // object-fit: contain — centre within the element box
+      const natRatio = img.naturalWidth / img.naturalHeight;
+      const boxRatio = ew / eh;
+      let dw, dh;
+      if (natRatio > boxRatio) { dw = ew; dh = ew / natRatio; }
+      else                     { dh = eh; dw = eh * natRatio; }
+      ctx.drawImage(img, (ew - dw) / 2, (eh - dh) / 2, dw, dh);
     }
-    let blob = await res.blob();
-    // Safety net: if R2 returned a wrong MIME type (e.g. text/plain), fix it from the URL extension
-    if (!blob.type.startsWith('image/')) {
-      const ext = url.split('.').pop().replace(/[?#].*/, '').toLowerCase();
-      const mimeByExt = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml' };
-      const fixed = mimeByExt[ext];
-      if (fixed) {
-        console.log(`[Backup] Fixing MIME type ${blob.type} → ${fixed} for: ${url}`);
-        blob = blob.slice(0, blob.size, fixed);
-      }
-    }
-    return new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = () => {
-        console.warn('[Backup] FileReader failed for:', url);
-        resolve(null);
-      };
-      reader.readAsDataURL(blob);
-    });
   } catch (e) {
-    console.warn('[Backup] Image fetch error:', e.message, url);
+    console.warn('[Backup] _elementToBase64 failed for:', el.name, e.message);
     return null;
   }
+  return oc.toDataURL('image/jpeg', 0.85);
 }
 
 async function downloadBackup() {
@@ -4131,7 +4133,7 @@ async function downloadBackup() {
         const rot = el.rotation || 0;
 
         if (el.imgSrc) {
-          const b64 = await _urlToBase64(el.imgSrc);
+          const b64 = await _elementToBase64(el);
           if (b64) {
             try {
               slide.addImage({ data: b64, x: ex, y: ey, w: ew, h: eh, rotate: rot });
@@ -4139,13 +4141,13 @@ async function downloadBackup() {
               console.warn('[Backup] addImage failed for:', el.name, imgErr.message);
             }
           } else {
-            console.warn('[Backup] Skipping image (proxy returned null):', el.name, el.imgSrc);
+            console.warn('[Backup] Skipping image (canvas render returned null):', el.name);
           }
 
         } else if (el.colorBg) {
           // Solid or gradient background — approximate with first color for gradient
           const fillHex = _hexColor(el.colorBg);
-          slide.addShape(pptx.ShapeType.RECT, {
+          slide.addShape('rect', {
             x: ex, y: ey, w: ew, h: eh, rotate: rot,
             fill: { color: fillHex },
             line: { type: 'none' },
