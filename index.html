@@ -1303,65 +1303,7 @@ let redoStack = [];
 let elementCounter = 0;
 
 // ─── ASSET LIBRARY ───────────────────────────────────────────────
-// Single unified array — ALL categories (including Backgrounds & Surfaces) live here.
-// Each item is either an emoji placeholder  { name, emoji }
-// or a color/gradient swatch               { name, bg, isSwatch: true }
-const DEMO_ELEMENTS = [
-  { category: "Plants", items: [
-    { name: "Ficus Tree", emoji: "🌳" },
-    { name: "Potted Plant", emoji: "🪴" },
-    { name: "Flower Bouquet", emoji: "💐" },
-    { name: "Cactus", emoji: "🌵" },
-    { name: "Herbs", emoji: "🌿" },
-    { name: "Vine", emoji: "🍃" },
-  ]},
-  { category: "Kitchenware", items: [
-    { name: "Cutting Board", emoji: "🪵" },
-    { name: "Dutch Oven", emoji: "🫕" },
-    { name: "Bowl", emoji: "🥣" },
-    { name: "Plate", emoji: "🍽" },
-    { name: "Coffee Maker", emoji: "☕" },
-    { name: "Mortar", emoji: "🧄" },
-  ]},
-  { category: "Food Props", items: [
-    { name: "Bread Basket", emoji: "🧺" },
-    { name: "Vegetables", emoji: "🥦" },
-    { name: "Tomatoes", emoji: "🍅" },
-    { name: "Cheese", emoji: "🧀" },
-    { name: "Garlic", emoji: "🧄" },
-    { name: "Spices", emoji: "🫙" },
-  ]},
-  { category: "Tableware", items: [
-    { name: "Wine Glass", emoji: "🍷" },
-    { name: "Pitcher", emoji: "🫗" },
-    { name: "Tea Cup", emoji: "🍵" },
-    { name: "Bottle", emoji: "🍾" },
-    { name: "Salt & Pepper", emoji: "🧂" },
-    { name: "Spoon", emoji: "🥄" },
-  ]},
-  { category: "Backgrounds", items: [
-    { name: "White",       bg: "#ffffff",                                            isSwatch: true },
-    { name: "Warm Grey",   bg: "#e8e0d5",                                            isSwatch: true },
-    { name: "Linen",       bg: "#f5f0e8",                                            isSwatch: true },
-    { name: "Sage",        bg: "#8fa882",                                            isSwatch: true },
-    { name: "Terracotta",  bg: "#c4714f",                                            isSwatch: true },
-    { name: "Black",       bg: "#1a1a1a",                                            isSwatch: true },
-    { name: "Dark Wood",   bg: "linear-gradient(135deg,#4a3728,#6b4c35,#3d2e22)",   isSwatch: true },
-    { name: "Concrete",    bg: "linear-gradient(135deg,#9e9e9e,#757575)",           isSwatch: true },
-  ]},
-  { category: "Surfaces", items: [
-    { name: "Oak Board",      bg: "linear-gradient(90deg,#c9956c,#b8835a,#d4a574)", isSwatch: true },
-    { name: "Marble White",   bg: "radial-gradient(circle,#f8f8f8,#e8e8e8)",        isSwatch: true },
-    { name: "Slate",          bg: "linear-gradient(135deg,#4a4a4a,#333,#555)",      isSwatch: true },
-    { name: "Butcher Block",  bg: "linear-gradient(90deg,#a0704a,#8b5e3c,#b07845)", isSwatch: true },
-  ]},
-];
-
-// Keep a legacy alias so any stray reference to ASSETS still resolves
-const ASSETS = [];
-
-// User-uploaded assets keyed by category name
-// { "Plants": [{name, imgSrc}, ...], "My Custom Cat": [...] }
+// User-uploaded assets keyed by category name: { "Herbs": [{name, imgSrc}, ...] }
 const userAssets = {};
 
 function getOrCreateUserCategory(catName) {
@@ -1646,11 +1588,7 @@ function renameCategory(oldName, titleTextEl, titleRowEl) {
       return;
     }
 
-    // 1. Rename in DEMO_ELEMENTS if it's a built-in category
-    const builtIn = DEMO_ELEMENTS.find(c => c.category === oldName);
-    if (builtIn) builtIn.category = newName;
-
-    // 2. Rename the key in userAssets if any uploads live there
+    // Rename the key in userAssets
     if (userAssets[oldName]) {
       userAssets[newName] = userAssets[oldName];
       delete userAssets[oldName];
@@ -1730,7 +1668,7 @@ function toggleCategoryCollapse(catName, categoryDiv) {
 
 // ─── TITLE ROW FACTORY ──────────────────────────────────────────
 // Builds a consistent cat-title-row for both built-in and custom categories.
-function makeCategoryTitleRow(catName, { badge = null, isCustom = false } = {}) {
+function makeCategoryTitleRow(catName) {
   const titleRow = document.createElement('div');
   titleRow.className = 'cat-title-row';
 
@@ -1740,7 +1678,7 @@ function makeCategoryTitleRow(catName, { badge = null, isCustom = false } = {}) 
   chevron.textContent = '▾';
   titleRow.appendChild(chevron);
 
-  // Left: name + optional badges
+  // Left: name + pencil rename button
   const leftSide = document.createElement('div');
   leftSide.style.cssText = 'display:flex;align-items:center;gap:5px;min-width:0;flex:1;';
 
@@ -1750,14 +1688,7 @@ function makeCategoryTitleRow(catName, { badge = null, isCustom = false } = {}) 
   titleText.textContent = catName;
   leftSide.appendChild(titleText);
 
-  if (isCustom) {
-    const customBadge = document.createElement('span');
-    customBadge.style.cssText = 'font-size:9px;background:var(--subtle);color:var(--ink-soft);border-radius:3px;padding:1px 5px;flex-shrink:0;';
-    customBadge.textContent = 'custom';
-    leftSide.appendChild(customBadge);
-  }
-
-  // Pencil rename button (sits right after the label)
+  // Pencil rename button
   const pencilBtn = document.createElement('button');
   pencilBtn.className = 'cat-rename-btn';
   pencilBtn.title = `Rename "${catName}"`;
@@ -1771,7 +1702,7 @@ function makeCategoryTitleRow(catName, { badge = null, isCustom = false } = {}) 
 
   titleRow.appendChild(leftSide);
 
-  // Right: drop hint + optional user-count badge
+  // Right: drop hint
   const rightSide = document.createElement('div');
   rightSide.style.cssText = 'display:flex;align-items:center;gap:5px;flex-shrink:0;';
 
@@ -1779,13 +1710,6 @@ function makeCategoryTitleRow(catName, { badge = null, isCustom = false } = {}) 
   hint.className = 'cat-drop-hint';
   hint.textContent = '↓ drop here';
   rightSide.appendChild(hint);
-
-  if (badge) {
-    const badgeEl = document.createElement('span');
-    badgeEl.style.cssText = 'font-size:9px;background:var(--subtle);color:var(--ink-soft);border-radius:3px;padding:1px 5px;flex-shrink:0;';
-    badgeEl.textContent = badge;
-    rightSide.appendChild(badgeEl);
-  }
 
   titleRow.appendChild(rightSide);
 
@@ -1848,32 +1772,33 @@ function renderAssets(filter = '') {
   container.innerHTML = '';
   const f = filter.toLowerCase();
 
-  const builtInCatNames = DEMO_ELEMENTS.map(c => c.category);
-  const allUserCatNames = Object.keys(userAssets).filter(k => userAssets[k].length > 0);
-  const extraCatNames = allUserCatNames.filter(k => !builtInCatNames.includes(k));
-  const allKnownCatNames = [...builtInCatNames, ...extraCatNames];
+  const allCatNames = Object.keys(userAssets).filter(k => userAssets[k].length > 0);
+
+  // No assets uploaded yet — show a prompt (only when not searching)
+  if (allCatNames.length === 0 && !f) {
+    container.innerHTML = `<div style="padding:28px 16px;text-align:center;color:var(--ink-soft);font-size:12px;line-height:1.7;">
+      No assets yet.<br>Switch to the <strong>Upload</strong> tab to add your first image.
+    </div>`;
+    _renderedCatOrder = [];
+    return;
+  }
 
   // Sync categoryOrder: append any newly-created categories not yet tracked
-  allKnownCatNames.forEach(n => { if (!categoryOrder.includes(n)) categoryOrder.push(n); });
+  allCatNames.forEach(n => { if (!categoryOrder.includes(n)) categoryOrder.push(n); });
   // Build ordered render list: saved order restricted to currently-known cats
-  const orderedCatNames = categoryOrder.filter(n => allKnownCatNames.includes(n));
+  const orderedCatNames = categoryOrder.filter(n => allCatNames.includes(n));
 
   const visibleCats = [];
   let visibleIdx = 0;
 
   for (const catName of orderedCatNames) {
-    const cat = DEMO_ELEMENTS.find(c => c.category === catName); // null for extra user cats
-
-    const filteredBuiltIn = cat
-      ? (f ? cat.items.filter(i => i.name.toLowerCase().includes(f)) : cat.items)
-      : [];
-    const filteredUser = (userAssets[catName] || []).filter(i => !f ||
+    const items = (userAssets[catName] || []).filter(i => !f ||
       i.name.toLowerCase().includes(f) ||
       (i.tags || []).some(t => t.includes(f)));
 
-    if (!filteredBuiltIn.length && !filteredUser.length) continue;
+    if (!items.length) continue;
 
-    // Drop indicator before this category (used as drag target)
+    // Drop indicator before this category (drag target)
     const indicator = document.createElement('div');
     indicator.className = 'cat-drop-indicator';
     indicator.dataset.insertBefore = visibleIdx;
@@ -1882,8 +1807,7 @@ function renderAssets(filter = '') {
     const div = document.createElement('div');
     div.className = 'asset-category' + (collapsedCategories.has(catName) ? ' collapsed' : '');
 
-    const badge = (cat && filteredUser.length) ? `+${filteredUser.length} yours` : null;
-    const titleRow = makeCategoryTitleRow(catName, { badge, isCustom: !cat });
+    const titleRow = makeCategoryTitleRow(catName);
     div.appendChild(titleRow);
 
     // Wire mousedown for drag-to-reorder (disabled while search filter is active)
@@ -1891,7 +1815,7 @@ function renderAssets(filter = '') {
       const _catName = catName, _catDiv = div, _catIdx = visibleIdx;
       titleRow.addEventListener('mousedown', e => {
         if (e.target.closest('.cat-rename-btn')) return;
-        e.preventDefault(); // prevent text selection; click still fires if no drag
+        e.preventDefault();
         let dragStarted = false;
         const sx = e.clientX, sy = e.clientY;
         function onPreMove(mv) {
@@ -1910,63 +1834,7 @@ function renderAssets(filter = '') {
 
     const grid = document.createElement('div');
     grid.className = 'asset-grid';
-
-    if (cat) {
-      filteredBuiltIn.forEach(item => {
-        const el = document.createElement('div');
-        el.style.position = 'relative';
-
-        if (item.isSwatch) {
-          // ── Color/gradient swatch ──
-          el.className = 'asset-item';
-          el.title = item.name;
-          const inner = document.createElement('div');
-          inner.style.cssText = `width:85%;height:85%;border-radius:4px;background:${item.bg};pointer-events:none;`;
-          el.appendChild(inner);
-          el.innerHTML += `<div class="asset-label">${item.name}</div>`;
-          el.addEventListener('click', () => addColorRectToCanvas(item.bg, item.name));
-        } else {
-          // ── Emoji placeholder ──
-          el.className = 'asset-item';
-          el.innerHTML = `<span style="font-size:28px;pointer-events:none;">${item.emoji}</span><div class="asset-label">${item.name}</div>`;
-          el.draggable = true;
-          el.addEventListener('dragstart', e => {
-            e.dataTransfer.setData('asset-emoji', item.emoji);
-            e.dataTransfer.setData('asset-name', item.name);
-          });
-          el.addEventListener('click', () => addEmojiToCanvas(item.emoji, item.name));
-        }
-
-        // ── Delete button (appears on hover for ALL built-in placeholders) ──
-        const delBtn = document.createElement('button');
-        delBtn.textContent = '✕';
-        delBtn.title = `Remove "${item.name}"`;
-        delBtn.style.cssText = `position:absolute;top:2px;right:2px;width:16px;height:16px;
-          background:rgba(192,81,58,0.85);border:none;border-radius:3px;color:#fff;
-          font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center;
-          line-height:1;padding:0;z-index:5;`;
-        delBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          if (confirm(`Remove "${item.name}" from the library?`)) {
-            const catObj = DEMO_ELEMENTS.find(c => c.category === catName);
-            if (catObj) catObj.items = catObj.items.filter(i => i !== item);
-            renderAssets(document.getElementById('assetSearch').value);
-            showToast(`"${item.name}" removed`);
-          }
-        });
-        el.appendChild(delBtn);
-        el.addEventListener('mouseenter', () => {
-          delBtn.style.display = 'flex';
-          if (item.imgSrc) showAssetPreview(el, item);
-        });
-        el.addEventListener('mouseleave', () => { delBtn.style.display = 'none'; hideAssetPreview(); });
-
-        grid.appendChild(el);
-      });
-    }
-
-    // User-uploaded images for this category
-    filteredUser.forEach(item => grid.appendChild(makeImageAssetEl(item, catName)));
+    items.forEach(item => grid.appendChild(makeImageAssetEl(item, catName)));
 
     div.appendChild(grid);
     bindCategoryDropTarget(div, catName);
