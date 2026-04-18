@@ -4205,7 +4205,8 @@ function _hexColor(color) {
 }
 
 async function _elementToBase64(el) {
-  // Draw this image element to an offscreen canvas and return a JPEG data URL.
+  // Draw this image element to an offscreen canvas and return a PNG data URL.
+  // PNG preserves the alpha channel; JPEG would fill transparent areas with black.
   // Uses the same loadImage() + crop logic as exportCanvas() — no fetch/CORS issues.
   const ew = Math.max(Math.round(el.w), 1);
   const eh = Math.max(Math.round(el.h), 1);
@@ -4240,7 +4241,7 @@ async function _elementToBase64(el) {
     console.warn('[Backup] _elementToBase64 failed for:', el.name, e.message);
     return null;
   }
-  return oc.toDataURL('image/jpeg', 0.85);
+  return oc.toDataURL('image/png');
 }
 
 async function downloadBackup() {
