@@ -577,10 +577,25 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 6px 6px 6px; border-radius: 4px;
     transition: background 0.12s; gap: 6px;
-    cursor: pointer; user-select: none;
+    cursor: grab; user-select: none;
   }
+  .cat-title-row:active { cursor: grabbing; }
   .cat-title-row:hover { background: rgba(0,0,0,0.03); }
   .cat-drop-target.drag-over-cat .cat-title-row { background: rgba(0,0,0,0.04); }
+  .asset-category.cat-dragging { opacity: 0.35; pointer-events: none; }
+  .cat-drop-indicator {
+    height: 2px; background: var(--ink); border-radius: 2px;
+    margin: 1px 0; display: none;
+  }
+  .cat-drop-indicator.active { display: block; }
+  #cat-ghost {
+    position: fixed; pointer-events: none; z-index: 99999;
+    background: #fff; border: 1px solid var(--border-mid);
+    border-radius: 4px; padding: 5px 10px;
+    font-size: 12px; color: var(--ink); font-family: 'Outfit', sans-serif;
+    opacity: 0.95; box-shadow: var(--shadow);
+    white-space: nowrap; transform: rotate(-1deg); display: none;
+  }
   .cat-drop-hint { font-size: 9px; color: var(--ink); opacity: 0; transition: opacity 0.15s; white-space: nowrap; }
   body.dragging-user-asset .cat-drop-hint { opacity: 0.5; }
   body.dragging-user-asset .cat-drop-target { cursor: copy; }
@@ -1227,6 +1242,7 @@
 </div>
 
 <div id="layer-ghost"></div>
+<div id="cat-ghost"></div>
 
 <!-- Asset right-click context menu -->
 <div id="assetContextMenu">
@@ -1666,6 +1682,9 @@ function renameCategory(oldName, titleTextEl, titleRowEl) {
 
 // ─── CATEGORY COLLAPSE STATE ─────────────────────────────────────
 const collapsedCategories = new Set();
+let categoryOrder = [];     // persisted display order of category names
+let _renderedCatOrder = []; // snapshot set by renderAssets(), used by drag
+let catDragState = null;
 
 async function saveCollapseState() {
   try {
@@ -1678,6 +1697,22 @@ async function loadCollapseState() {
     const result = await window.storage.get('pk-collapsed-cats');
     if (result) {
       JSON.parse(result.value).forEach(c => collapsedCategories.add(c));
+    }
+  } catch(e) {}
+}
+
+// ─── CATEGORY ORDER ──────────────────────────────────────────────
+async function saveCategoryOrder() {
+  try {
+    await window.storage.set('pk-category-order', JSON.stringify(categoryOrder));
+  } catch(e) {}
+}
+
+async function loadCategoryOrder() {
+  try {
+    const result = await window.storage.get('pk-category-order');
+    if (result?.value) {
+      categoryOrder = JSON.parse(result.value);
     }
   } catch(e) {}
 }
@@ -1815,103 +1850,224 @@ function renderAssets(filter = '') {
 
   const builtInCatNames = DEMO_ELEMENTS.map(c => c.category);
   const allUserCatNames = Object.keys(userAssets).filter(k => userAssets[k].length > 0);
-  const extraCats = allUserCatNames.filter(k => !builtInCatNames.includes(k));
+  const extraCatNames = allUserCatNames.filter(k => !builtInCatNames.includes(k));
+  const allKnownCatNames = [...builtInCatNames, ...extraCatNames];
 
-  // ── All built-in categories (emoji, swatch, + merged user uploads) ──
-  DEMO_ELEMENTS.forEach(cat => {
-    const filteredBuiltIn = f ? cat.items.filter(i => i.name.toLowerCase().includes(f)) : cat.items;
-    const filteredUser = (userAssets[cat.category] || []).filter(i => !f ||
+  // Sync categoryOrder: append any newly-created categories not yet tracked
+  allKnownCatNames.forEach(n => { if (!categoryOrder.includes(n)) categoryOrder.push(n); });
+  // Build ordered render list: saved order restricted to currently-known cats
+  const orderedCatNames = categoryOrder.filter(n => allKnownCatNames.includes(n));
+
+  const visibleCats = [];
+  let visibleIdx = 0;
+
+  for (const catName of orderedCatNames) {
+    const cat = DEMO_ELEMENTS.find(c => c.category === catName); // null for extra user cats
+
+    const filteredBuiltIn = cat
+      ? (f ? cat.items.filter(i => i.name.toLowerCase().includes(f)) : cat.items)
+      : [];
+    const filteredUser = (userAssets[catName] || []).filter(i => !f ||
       i.name.toLowerCase().includes(f) ||
       (i.tags || []).some(t => t.includes(f)));
-    if (!filteredBuiltIn.length && !filteredUser.length) return;
 
-    const div = document.createElement('div');
-    div.className = 'asset-category' + (collapsedCategories.has(cat.category) ? ' collapsed' : '');
+    if (!filteredBuiltIn.length && !filteredUser.length) continue;
 
-    const badge = filteredUser.length ? `+${filteredUser.length} yours` : null;
-    div.appendChild(makeCategoryTitleRow(cat.category, { badge }));
-
-    const grid = document.createElement('div');
-    grid.className = 'asset-grid';
-
-    filteredBuiltIn.forEach(item => {
-      const el = document.createElement('div');
-      el.style.position = 'relative';
-
-      if (item.isSwatch) {
-        // ── Color/gradient swatch ──
-        el.className = 'asset-item';
-        el.title = item.name;
-        const inner = document.createElement('div');
-        inner.style.cssText = `width:85%;height:85%;border-radius:4px;background:${item.bg};pointer-events:none;`;
-        el.appendChild(inner);
-        el.innerHTML += `<div class="asset-label">${item.name}</div>`;
-        el.addEventListener('click', () => addColorRectToCanvas(item.bg, item.name));
-      } else {
-        // ── Emoji placeholder ──
-        el.className = 'asset-item';
-        el.innerHTML = `<span style="font-size:28px;pointer-events:none;">${item.emoji}</span><div class="asset-label">${item.name}</div>`;
-        el.draggable = true;
-        el.addEventListener('dragstart', e => {
-          e.dataTransfer.setData('asset-emoji', item.emoji);
-          e.dataTransfer.setData('asset-name', item.name);
-        });
-        el.addEventListener('click', () => addEmojiToCanvas(item.emoji, item.name));
-      }
-
-      // ── Delete button (appears on hover for ALL built-in placeholders) ──
-      const delBtn = document.createElement('button');
-      delBtn.textContent = '✕';
-      delBtn.title = `Remove "${item.name}"`;
-      delBtn.style.cssText = `position:absolute;top:2px;right:2px;width:16px;height:16px;
-        background:rgba(192,81,58,0.85);border:none;border-radius:3px;color:#fff;
-        font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center;
-        line-height:1;padding:0;z-index:5;`;
-      delBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        if (confirm(`Remove "${item.name}" from the library?`)) {
-          const catObj = DEMO_ELEMENTS.find(c => c.category === cat.category);
-          if (catObj) catObj.items = catObj.items.filter(i => i !== item);
-          renderAssets(document.getElementById('assetSearch').value);
-          showToast(`"${item.name}" removed`);
-        }
-      });
-      el.appendChild(delBtn);
-      el.addEventListener('mouseenter', () => {
-        delBtn.style.display = 'flex';
-        if (item.imgSrc) showAssetPreview(el, item);
-      });
-      el.addEventListener('mouseleave', () => { delBtn.style.display = 'none'; hideAssetPreview(); });
-
-      grid.appendChild(el);
-    });
-
-    // User-uploaded images for this category
-    filteredUser.forEach(item => grid.appendChild(makeImageAssetEl(item, cat.category)));
-
-    div.appendChild(grid);
-    bindCategoryDropTarget(div, cat.category);
-    container.appendChild(div);
-  });
-
-  // ── Extra user-only categories (created via + New) ──
-  extraCats.forEach(catName => {
-    const items = userAssets[catName].filter(i => !f ||
-      i.name.toLowerCase().includes(f) ||
-      (i.tags || []).some(t => t.includes(f)));
-    if (!items.length) return;
+    // Drop indicator before this category (used as drag target)
+    const indicator = document.createElement('div');
+    indicator.className = 'cat-drop-indicator';
+    indicator.dataset.insertBefore = visibleIdx;
+    container.appendChild(indicator);
 
     const div = document.createElement('div');
     div.className = 'asset-category' + (collapsedCategories.has(catName) ? ' collapsed' : '');
-    div.appendChild(makeCategoryTitleRow(catName, { isCustom: true }));
+
+    const badge = (cat && filteredUser.length) ? `+${filteredUser.length} yours` : null;
+    const titleRow = makeCategoryTitleRow(catName, { badge, isCustom: !cat });
+    div.appendChild(titleRow);
+
+    // Wire mousedown for drag-to-reorder (disabled while search filter is active)
+    if (!f) {
+      const _catName = catName, _catDiv = div, _catIdx = visibleIdx;
+      titleRow.addEventListener('mousedown', e => {
+        if (e.target.closest('.cat-rename-btn')) return;
+        e.preventDefault(); // prevent text selection; click still fires if no drag
+        let dragStarted = false;
+        const sx = e.clientX, sy = e.clientY;
+        function onPreMove(mv) {
+          if (!dragStarted && Math.hypot(mv.clientX - sx, mv.clientY - sy) > 5) {
+            dragStarted = true;
+            document.removeEventListener('mousemove', onPreMove);
+            document.removeEventListener('mouseup', onPreUp);
+            startCategoryDrag(mv, _catName, _catDiv, _catIdx);
+          }
+        }
+        function onPreUp() { document.removeEventListener('mousemove', onPreMove); }
+        document.addEventListener('mousemove', onPreMove);
+        document.addEventListener('mouseup', onPreUp, { once: true });
+      });
+    }
 
     const grid = document.createElement('div');
     grid.className = 'asset-grid';
-    items.forEach(item => grid.appendChild(makeImageAssetEl(item, catName)));
+
+    if (cat) {
+      filteredBuiltIn.forEach(item => {
+        const el = document.createElement('div');
+        el.style.position = 'relative';
+
+        if (item.isSwatch) {
+          // ── Color/gradient swatch ──
+          el.className = 'asset-item';
+          el.title = item.name;
+          const inner = document.createElement('div');
+          inner.style.cssText = `width:85%;height:85%;border-radius:4px;background:${item.bg};pointer-events:none;`;
+          el.appendChild(inner);
+          el.innerHTML += `<div class="asset-label">${item.name}</div>`;
+          el.addEventListener('click', () => addColorRectToCanvas(item.bg, item.name));
+        } else {
+          // ── Emoji placeholder ──
+          el.className = 'asset-item';
+          el.innerHTML = `<span style="font-size:28px;pointer-events:none;">${item.emoji}</span><div class="asset-label">${item.name}</div>`;
+          el.draggable = true;
+          el.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('asset-emoji', item.emoji);
+            e.dataTransfer.setData('asset-name', item.name);
+          });
+          el.addEventListener('click', () => addEmojiToCanvas(item.emoji, item.name));
+        }
+
+        // ── Delete button (appears on hover for ALL built-in placeholders) ──
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '✕';
+        delBtn.title = `Remove "${item.name}"`;
+        delBtn.style.cssText = `position:absolute;top:2px;right:2px;width:16px;height:16px;
+          background:rgba(192,81,58,0.85);border:none;border-radius:3px;color:#fff;
+          font-size:9px;cursor:pointer;display:none;align-items:center;justify-content:center;
+          line-height:1;padding:0;z-index:5;`;
+        delBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          if (confirm(`Remove "${item.name}" from the library?`)) {
+            const catObj = DEMO_ELEMENTS.find(c => c.category === catName);
+            if (catObj) catObj.items = catObj.items.filter(i => i !== item);
+            renderAssets(document.getElementById('assetSearch').value);
+            showToast(`"${item.name}" removed`);
+          }
+        });
+        el.appendChild(delBtn);
+        el.addEventListener('mouseenter', () => {
+          delBtn.style.display = 'flex';
+          if (item.imgSrc) showAssetPreview(el, item);
+        });
+        el.addEventListener('mouseleave', () => { delBtn.style.display = 'none'; hideAssetPreview(); });
+
+        grid.appendChild(el);
+      });
+    }
+
+    // User-uploaded images for this category
+    filteredUser.forEach(item => grid.appendChild(makeImageAssetEl(item, catName)));
+
     div.appendChild(grid);
     bindCategoryDropTarget(div, catName);
     container.appendChild(div);
-  });
+
+    visibleCats.push(catName);
+    visibleIdx++;
+  }
+
+  // Final drop indicator at the very bottom
+  const bottomIndicator = document.createElement('div');
+  bottomIndicator.className = 'cat-drop-indicator';
+  bottomIndicator.dataset.insertBefore = visibleIdx;
+  container.appendChild(bottomIndicator);
+
+  _renderedCatOrder = visibleCats;
+}
+
+// ─── CATEGORY DRAG-TO-REORDER ─────────────────────────────────────
+function startCategoryDrag(e, catName, catDiv, startIdx) {
+  const ghost = document.getElementById('cat-ghost');
+  ghost.textContent = catName;
+  ghost.style.display = 'block';
+  ghost.style.left = e.clientX + 12 + 'px';
+  ghost.style.top  = e.clientY - 16 + 'px';
+
+  catDiv.classList.add('cat-dragging');
+  catDragState = { catName, startIdx, currentInsertBefore: startIdx };
+
+  const container = document.getElementById('assetsList');
+
+  function getCatDivs() {
+    return [...container.querySelectorAll('.asset-category')];
+  }
+  function getIndicators() {
+    return [...container.querySelectorAll('.cat-drop-indicator')];
+  }
+  function calcInsertBefore(clientY) {
+    const divs = getCatDivs();
+    for (let i = 0; i < divs.length; i++) {
+      const rect = divs[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) return i;
+    }
+    return divs.length;
+  }
+
+  function onMove(ev) {
+    if (!catDragState) return;
+    ghost.style.left = ev.clientX + 12 + 'px';
+    ghost.style.top  = ev.clientY - 16 + 'px';
+    const insertBefore = calcInsertBefore(ev.clientY);
+    catDragState.currentInsertBefore = insertBefore;
+    getIndicators().forEach(ind => {
+      ind.classList.toggle('active', parseInt(ind.dataset.insertBefore) === insertBefore);
+    });
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    ghost.style.display = 'none';
+    getIndicators().forEach(i => i.classList.remove('active'));
+    catDiv.classList.remove('cat-dragging');
+
+    // Suppress the click event that fires on mouseup so collapse doesn't toggle
+    document.addEventListener('click', ev => ev.stopImmediatePropagation(),
+      { capture: true, once: true });
+
+    if (!catDragState) return;
+    const { catName, startIdx, currentInsertBefore } = catDragState;
+    catDragState = null;
+
+    // No-op: dropped on same position
+    if (currentInsertBefore === startIdx || currentInsertBefore === startIdx + 1) return;
+
+    // Compute new visible order
+    const prevVisible = [..._renderedCatOrder];
+    const newVisible = [...prevVisible];
+    const [moved] = newVisible.splice(startIdx, 1);
+    let insertAt = currentInsertBefore;
+    if (currentInsertBefore > startIdx) insertAt--;
+    insertAt = Math.max(0, Math.min(newVisible.length, insertAt));
+    newVisible.splice(insertAt, 0, moved);
+
+    // Reconcile back into full categoryOrder, preserving positions of hidden categories
+    const newOrder = [];
+    let vi = 0;
+    for (const n of categoryOrder) {
+      if (prevVisible.includes(n)) {
+        newOrder.push(newVisible[vi++]);
+      } else {
+        newOrder.push(n);
+      }
+    }
+    categoryOrder = newOrder;
+
+    saveCategoryOrder();
+    renderAssets(document.getElementById('assetSearch').value || '');
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp, { once: true });
 }
 
 function filterAssets(val) { renderAssets(val); }
@@ -4460,6 +4616,7 @@ async function loadUserAssetsFromStorage() {
 // ─── INIT ────────────────────────────────────────────────────────
 async function init() {
   await loadCollapseState();
+  await loadCategoryOrder();
   await loadUserAssetsFromStorage();
   // Pre-warm gallery cache so Save/Gallery buttons open instantly
   _galleryCache = await loadGalleryData();
