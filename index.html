@@ -633,22 +633,24 @@
   /* ── ROTATION HANDLE ── */
   .rotate-stem {
     position: absolute;
-    top: -25px; left: calc(50% - 0.5px);
-    width: 1px; height: 25px;
+    top: -23px; left: calc(50% - 0.5px);
+    width: 1px; height: 23px;
     background: var(--ink); opacity: 0.28;
     display: none; pointer-events: none;
   }
   .rotate-handle {
     position: absolute;
-    top: -35px; left: 50%;
+    top: -33px; left: 50%;
     transform: translateX(-50%);
     width: 10px; height: 10px;
     background: #fff;
     border: 1.5px solid var(--ink);
     border-radius: 50%;
     display: none; z-index: 11;
-    cursor: crosshair; touch-action: none;
+    cursor: grab; touch-action: none;
   }
+  .rotate-handle:active,
+  .canvas-element.rotating .rotate-handle { cursor: grabbing; }
   .canvas-element.selected .rotate-stem  { display: block; }
   .canvas-element.selected .rotate-handle { display: block; }
   .canvas-element.locked .rotate-stem   { display: none !important; }
@@ -2272,6 +2274,14 @@ function renderElement(el) {
   rotateHandle.className = 'rotate-handle';
   div.appendChild(rotateHandle);
   rotateHandle.addEventListener('mousedown', e => startRotate(e, el.id));
+  rotateHandle.addEventListener('dblclick', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (el.locked) return;
+    saveHistory();
+    el.rotation = 0;
+    applyTransform(el);
+    updatePropertiesPanel();
+  });
 
   div.addEventListener('mousedown', e => {
     if (e.target.classList.contains('resize-handle')) return;
@@ -2446,8 +2456,11 @@ function startRotate(e, id) {
   const centerX = rect.left + rect.width  / 2;
   const centerY = rect.top  + rect.height / 2;
 
-  const startAngle   = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
+  const startAngle    = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
   const startRotation = el.rotation || 0;
+
+  dom.classList.add('rotating');
+  document.body.style.cursor = 'grabbing';
 
   const onMove = ev => {
     const angle = Math.atan2(ev.clientY - centerY, ev.clientX - centerX) * 180 / Math.PI;
@@ -2461,6 +2474,8 @@ function startRotate(e, id) {
   const onUp = () => {
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    dom.classList.remove('rotating');
+    document.body.style.cursor = '';
     saveHistory();
   };
 
