@@ -530,6 +530,7 @@
   }
   .prop-input:focus { border-color: var(--ink); background: #fff; }
   .opacity-slider { width: 100%; accent-color: var(--ink); cursor: pointer; }
+  .prop-readout { font-size: 10px; color: var(--ink-soft); min-width: 28px; text-align: right; flex-shrink: 0; }
 
   /* CANVAS BG */
   .bg-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
@@ -856,6 +857,15 @@
   }
   .cat-title-row:hover .cat-rename-btn { opacity: 1; }
   .cat-rename-btn:hover { color: var(--ink); background: var(--subtle); }
+  .cat-gear-btn {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 11px; padding: 1px 3px;
+    border-radius: 3px; opacity: 0;
+    transition: opacity 0.12s, color 0.12s; line-height: 1; flex-shrink: 0;
+  }
+  .cat-title-row:hover .cat-gear-btn { opacity: 1; }
+  .cat-gear-btn:hover { color: var(--ink); background: var(--subtle); }
+  .cat-settings-row { background: var(--subtle); border-top: 1px solid var(--border); }
   .cat-rename-input {
     background: #fff; border: 1px solid var(--ink);
     border-radius: 3px; color: var(--ink); font-size: 11px;
@@ -1155,7 +1165,10 @@
 
     <!-- Layers -->
     <div class="panel-section" style="padding-bottom:6px;">
-      <div class="panel-section-title">Layers</div>
+      <div class="panel-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        Layers
+        <button id="selectAllLayersBtn" onclick="toggleSelectAll()" style="font-size:9px;background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:0;text-decoration:underline;font-family:'Outfit',sans-serif;letter-spacing:0;display:none;">Select All</button>
+      </div>
     </div>
     <div class="layers-list" id="layersList">
       <div class="no-elements">No elements yet</div>
@@ -1419,7 +1432,7 @@ function makeImageAssetEl(item, currentCat) {
     const y = Math.round(60 + Math.random() * (canvas.clientHeight - 200));
     const tempImg = new Image();
     tempImg.onload = () => {
-      const maxSide = 300;
+      const maxSide = categoryDefaults[currentCat]?.defaultSize ?? 300;
       const nat = tempImg.naturalWidth / tempImg.naturalHeight;
       let w, h;
       if (nat >= 1) { w = maxSide; h = Math.round(maxSide / nat); }
@@ -1621,6 +1634,7 @@ function renameCategory(oldName, titleTextEl, titleRowEl) {
 // ─── CATEGORY COLLAPSE STATE ─────────────────────────────────────
 const collapsedCategories = new Set();
 let categoryOrder = [];     // persisted display order of category names
+let categoryDefaults = {};  // persisted per-category settings { catName: { defaultSize } }
 let _renderedCatOrder = []; // snapshot set by renderAssets(), used by drag
 let catDragState = null;
 
@@ -1637,6 +1651,24 @@ async function loadCollapseState() {
       JSON.parse(result.value).forEach(c => collapsedCategories.add(c));
     }
   } catch(e) {}
+}
+
+// ─── CATEGORY DEFAULTS (per-category default size) ───────────────
+async function saveCategoryDefaults() {
+  try {
+    await window.storage.set('pk-category-defaults', JSON.stringify(categoryDefaults));
+  } catch(e) {}
+}
+async function loadCategoryDefaults() {
+  try {
+    const result = await window.storage.get('pk-category-defaults');
+    if (result?.value) categoryDefaults = JSON.parse(result.value);
+  } catch(e) {}
+}
+function updateCategoryDefault(catName, size) {
+  if (!categoryDefaults[catName]) categoryDefaults[catName] = {};
+  categoryDefaults[catName].defaultSize = size;
+  saveCategoryDefaults();
 }
 
 // ─── CATEGORY ORDER ──────────────────────────────────────────────
@@ -1808,13 +1840,39 @@ function renderAssets(filter = '') {
     div.className = 'asset-category' + (collapsedCategories.has(catName) ? ' collapsed' : '');
 
     const titleRow = makeCategoryTitleRow(catName);
+
+    // Gear button for per-category default size
+    const escapedCatName = catName.replace(/'/g, "\\'");
+    const catDefaultSize = categoryDefaults[catName]?.defaultSize ?? 300;
+    const gearBtn = document.createElement('button');
+    gearBtn.className = 'cat-gear-btn';
+    gearBtn.title = `Default size for "${catName}"`;
+    gearBtn.textContent = '⚙';
+    gearBtn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+    const settingsRow = document.createElement('div');
+    settingsRow.className = 'cat-settings-row';
+    settingsRow.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;padding:3px 10px 8px;">
+        <span style="font-size:10px;color:var(--text-muted);letter-spacing:0.04em;flex-shrink:0;">Default size</span>
+        <input type="range" class="opacity-slider" min="50" max="600" step="10" value="${catDefaultSize}"
+          style="flex:1;" oninput="updateCategoryDefault('${escapedCatName}',+this.value);this.nextElementSibling.textContent=this.value+'px'">
+        <span style="font-size:10px;color:var(--ink-soft);min-width:34px;">${catDefaultSize}px</span>
+      </div>
+    `;
+    settingsRow.style.display = 'none';
+    gearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      settingsRow.style.display = settingsRow.style.display === 'none' ? 'block' : 'none';
+    });
+    titleRow.querySelector('.cat-rename-btn').insertAdjacentElement('afterend', gearBtn);
     div.appendChild(titleRow);
+    div.appendChild(settingsRow);
 
     // Wire mousedown for drag-to-reorder (disabled while search filter is active)
     if (!f) {
       const _catName = catName, _catDiv = div, _catIdx = visibleIdx;
       titleRow.addEventListener('mousedown', e => {
-        if (e.target.closest('.cat-rename-btn')) return;
+        if (e.target.closest('.cat-rename-btn') || e.target.closest('.cat-gear-btn')) return;
         e.preventDefault();
         let dragStarted = false;
         const sx = e.clientX, sy = e.clientY;
@@ -2100,6 +2158,21 @@ function applyShapeProps(el) {
   _refreshShapeSvg(el, svg);
 }
 
+function _applyImgFilter(el, dom) {
+  const hue = el.hue ?? 0;
+  const sat = el.saturation ?? 100;
+  dom.style.filter = (hue === 0 && sat === 100) ? '' : `hue-rotate(${hue}deg) saturate(${sat}%)`;
+}
+function resetImgFilter() {
+  if (!selectedId) return;
+  const el = elements.find(e => e.id === selectedId);
+  if (!el) return;
+  el.hue = 0;
+  el.saturation = 100;
+  _applyImgFilter(el, document.getElementById(selectedId));
+  updatePropertiesPanel();
+}
+
 function renderElement(el) {
   const canvas = document.getElementById('canvas');
   const existing = document.getElementById(el.id);
@@ -2132,6 +2205,7 @@ function renderElement(el) {
     div.appendChild(span);
   } else if (el.imgSrc) {
     div.style.overflow = 'hidden';
+    _applyImgFilter(el, div);
     const img = document.createElement('img');
     img.src = el.imgSrc;
     img.draggable = false;
@@ -2482,6 +2556,7 @@ document.getElementById('canvas').addEventListener('drop', e => {
   const emoji = e.dataTransfer.getData('asset-emoji');
   const name = e.dataTransfer.getData('asset-name');
   const imgSrc = e.dataTransfer.getData('asset-img');
+  const fromCat = e.dataTransfer.getData('user-asset-from-cat');
 
   if (emoji) {
     saveHistory();
@@ -2495,11 +2570,11 @@ document.getElementById('canvas').addEventListener('drop', e => {
   } else if (imgSrc) {
     saveHistory();
     const id = 'el-' + (++elementCounter);
-    // Use natural image dimensions (capped at 300px on longest side) so
+    // Use natural image dimensions (capped at per-category default size on longest side) so
     // free vs constrained resize is immediately distinguishable
     const tempImg = new Image();
     tempImg.onload = () => {
-      const maxSide = 300;
+      const maxSide = categoryDefaults[fromCat]?.defaultSize ?? 300;
       const nat = tempImg.naturalWidth / tempImg.naturalHeight;
       let w, h;
       if (nat >= 1) { w = maxSide; h = Math.round(maxSide / nat); }
@@ -2977,6 +3052,22 @@ function updatePropertiesPanel() {
       <span class="prop-label">Opacity</span>
     </div>
     <input type="range" class="opacity-slider" min="0" max="1" step="0.05" value="${el.opacity}" oninput="updateProp('opacity',+this.value)">
+    ${el.imgSrc ? `
+    <div class="prop-row" style="margin-top:6px;">
+      <span class="prop-label">Hue</span>
+      <input type="range" class="opacity-slider" style="flex:1;min-width:0;" min="-180" max="180" step="1" value="${el.hue ?? 0}" oninput="updateProp('hue',+this.value);this.nextElementSibling.textContent=this.value">
+      <span class="prop-readout">${el.hue ?? 0}</span>
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Sat</span>
+      <input type="range" class="opacity-slider" style="flex:1;min-width:0;" min="0" max="200" step="1" value="${el.saturation ?? 100}" oninput="updateProp('saturation',+this.value);this.nextElementSibling.textContent=this.value">
+      <span class="prop-readout">${el.saturation ?? 100}</span>
+    </div>
+    ${((el.hue ?? 0) !== 0 || (el.saturation ?? 100) !== 100) ? `
+    <div style="text-align:right;margin-top:2px;margin-bottom:4px;">
+      <button onclick="resetImgFilter()" style="font-size:9px;background:none;border:none;color:var(--ink-soft);cursor:pointer;text-decoration:underline;font-family:'Outfit',sans-serif;padding:0;">Reset</button>
+    </div>` : ''}
+    ` : ''}
   `;
   // Sync lock button
   const lockBtn = document.getElementById('lockBtn');
@@ -3000,6 +3091,7 @@ function updateProp(prop, val) {
   else if (prop === 'strokeColor') { el.strokeColor = val; applyShapeProps(el); }
   else if (prop === 'noStroke')    { el.noStroke = val;    applyShapeProps(el); updatePropertiesPanel(); }
   else if (prop === 'strokeWidth') { el.strokeWidth = val; applyShapeProps(el); updatePropertiesPanel(); }
+  else if (prop === 'hue' || prop === 'saturation') { _applyImgFilter(el, dom); }
 }
 
 // ─── LAYERS LIST ─────────────────────────────────────────────────
@@ -3007,9 +3099,16 @@ let layerDragState = null;
 
 function updateLayers() {
   const list = document.getElementById('layersList');
+  const selAllBtn = document.getElementById('selectAllLayersBtn');
   if (!elements.length) {
     list.innerHTML = '<div class="no-elements">No elements yet</div>';
+    if (selAllBtn) selAllBtn.style.display = 'none';
     return;
+  }
+  if (selAllBtn) {
+    selAllBtn.style.display = '';
+    const allSel = selectedIds.length === elements.length && elements.length > 0;
+    selAllBtn.textContent = allSel ? 'Deselect All' : 'Select All';
   }
   list.innerHTML = '';
 
@@ -3093,6 +3192,21 @@ function updateLayers() {
   bottomIndicator.className = 'layer-drop-indicator';
   bottomIndicator.dataset.insertBefore = elements.length; // after everything
   list.appendChild(bottomIndicator);
+}
+
+function toggleSelectAll() {
+  if (!elements.length) return;
+  if (selectedIds.length === elements.length) {
+    // Deselect all
+    selectElement(null);
+  } else {
+    // Select all
+    selectedId = elements[elements.length - 1].id;
+    selectedIds = elements.map(e => e.id);
+    _applySelectionVisuals();
+    updatePropertiesPanel();
+    updateLayers();
+  }
 }
 
 function startLayerDrag(e, elId, startReversedIdx, itemEl) {
@@ -3388,6 +3502,8 @@ async function exportCanvas() {
       } else if (el.imgSrc) {
         try {
           const img = await loadImage(el.imgSrc);
+          const _hue = el.hue ?? 0, _sat = el.saturation ?? 100;
+          if (_hue !== 0 || _sat !== 100) ctx.filter = `hue-rotate(${_hue}deg) saturate(${_sat}%)`;
           // Clip to frame bounds
           ctx.beginPath();
           ctx.rect(-ew / 2, -eh / 2, ew, eh);
@@ -3521,8 +3637,8 @@ function showToast(msg) {
 
 // ─── KEYBOARD SHORTCUTS ──────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT') return;
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+  if (e.target.isContentEditable || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
   if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
   if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
   if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); duplicateSelected(); }
@@ -3753,10 +3869,12 @@ async function generateThumbnail() {
     } else if (el.imgSrc) {
       try {
         const img = await loadImage(el.imgSrc);
+        const _hue = el.hue ?? 0, _sat = el.saturation ?? 100;
 
         // Origin is already at element center (outer ctx.translate above).
         // Just clip to the bounding box and draw.
         ctx.save();
+        if (_hue !== 0 || _sat !== 100) ctx.filter = `hue-rotate(${_hue}deg) saturate(${_sat}%)`;
         ctx.beginPath();
         ctx.rect(-ew / 2, -eh / 2, ew, eh);
         ctx.clip();
@@ -4084,6 +4202,8 @@ async function _elementToBase64(el) {
   const ctx = oc.getContext('2d');
   try {
     const img = await loadImage(el.imgSrc);
+    const _hue = el.hue ?? 0, _sat = el.saturation ?? 100;
+    if (_hue !== 0 || _sat !== 100) ctx.filter = `hue-rotate(${_hue}deg) saturate(${_sat}%)`;
     // Clip to canvas bounds (mirrors exportCanvas clip)
     ctx.beginPath();
     ctx.rect(0, 0, ew, eh);
@@ -4486,6 +4606,7 @@ async function loadUserAssetsFromStorage() {
 async function init() {
   await loadCollapseState();
   await loadCategoryOrder();
+  await loadCategoryDefaults();
   await loadUserAssetsFromStorage();
   // Pre-warm gallery cache so Save/Gallery buttons open instantly
   _galleryCache = await loadGalleryData();
